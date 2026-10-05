@@ -1,10 +1,18 @@
 <script setup lang="ts">
 import { RouterLink } from 'vue-router';
+import AppHeader from '@/components/ui/AppHeader.vue';
+
+defineProps<{ title?: string; text?: string }>();
 </script>
 
 <template>
-    <main class="mx-auto flex min-h-screen max-w-3xl flex-col items-center justify-center gap-4 px-4 text-center">
-        <h1 class="text-3xl font-semibold">Страница не найдена</h1>
-        <RouterLink :to="{ name: 'home' }" class="underline">На главную</RouterLink>
-    </main>
+    <div class="min-h-screen">
+        <AppHeader />
+        <main class="mx-auto max-w-6xl px-4 py-16 sm:px-6">
+            <p class="year-stamp text-8xl text-stamp">404</p>
+            <h1 class="mt-4 text-3xl font-semibold">{{ title ?? 'Такой страницы нет' }}</h1>
+            <p class="mt-2 text-ink-soft">{{ text ?? 'Возможно, ссылка устарела.' }}</p>
+            <RouterLink :to="{ name: 'home' }" class="btn-primary mt-8">К подборкам</RouterLink>
+        </main>
+    </div>
 </template>

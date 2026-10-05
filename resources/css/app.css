@@ -1,9 +1,79 @@
 @import 'tailwindcss';
+@import '@fontsource-variable/onest';
+@import '@fontsource-variable/literata/opsz.css';
 
 @source '../js/**/*.vue';
 @source '../views/**/*.blade.php';
 
+/*
+ * Archive palette: silver-gelatin paper, print ink, cyanotype blue, registration-stamp red.
+ */
 @theme {
-    --font-sans: ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol',
-        'Noto Color Emoji';
+    --color-paper: #e7eaec;
+    --color-paper-raised: #f5f6f7;
+    --color-ink: #1d2329;
+    --color-ink-soft: #4f5a64;
+    --color-rule: #c4cbd1;
+    --color-cyan: #1f4e79;
+    --color-cyan-deep: #163a5b;
+    --color-stamp: #b8322a;
+
+    --font-sans: 'Onest Variable', ui-sans-serif, system-ui, sans-serif;
+    --font-serif: 'Literata Variable', ui-serif, Georgia, serif;
+}
+
+@layer base {
+    html {
+        background-color: var(--color-paper);
+        color: var(--color-ink);
+        font-family: var(--font-sans);
+        -webkit-font-smoothing: antialiased;
+    }
+
+    :focus-visible {
+        outline: 3px solid var(--color-cyan);
+        outline-offset: 2px;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+            animation-duration: 0.01ms !important;
+            transition-duration: 0.01ms !important;
+        }
+    }
+}
+
+@layer components {
+    .btn-primary {
+        @apply inline-flex items-center justify-center gap-2 rounded-md bg-cyan px-5 py-3 text-base font-semibold text-white transition-colors hover:bg-cyan-deep disabled:cursor-not-allowed disabled:bg-ink-soft/40;
+    }
+
+    .btn-secondary {
+        @apply inline-flex items-center justify-center gap-2 rounded-md border border-ink/25 bg-paper-raised px-5 py-3 text-base font-medium text-ink transition-colors hover:border-ink/50;
+    }
+
+    /* Year set like a date stamp on an archive card. */
+    .year-stamp {
+        @apply font-serif font-semibold tabular-nums tracking-tight;
+        font-variation-settings: 'opsz' 72;
+    }
+}
+
+/* Leaflet markers drawn with CSS so they never depend on image URLs. */
+.marker-guess,
+.marker-correct {
+    border-radius: 9999px;
+    box-shadow: 0 0 0 2px #fff, 0 1px 4px rgb(0 0 0 / 0.35);
+}
+
+.marker-guess {
+    background: var(--color-cyan);
+    border: 3px solid #fff;
+}
+
+.marker-correct {
+    background: var(--color-stamp);
+    border: 3px solid #fff;
 }

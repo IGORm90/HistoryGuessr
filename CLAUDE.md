@@ -38,6 +38,9 @@ Dev logins: `admin@example.com` / `editor@example.com`, password `password`.
 - Scores are calculated only on the server and persisted at answer time; never accept distance/score from the client.
 - Answer submission is idempotent (`idempotency_key`) and protected by DB unique constraints.
 - Scoring constants live in `config/game.php`.
+- Questions and quizzes share `App\Enums\PublicationStatus` (draft / published / archived). Drafts may be incomplete; PostgreSQL CHECK `questions_published_complete` refuses to publish a question without image, answer and attribution.
+- Integrity rules (year ≠ 0, coordinate ranges, one answer per question, unique idempotency key, `total = geo + year`) are enforced by DB constraints, not only in PHP. CHECK constraints are added with `DB::statement` in migrations.
+- `public_id` is set by the `HasPublicId` model event: don't use `WithoutModelEvents` in seeders.
 - Years are signed integers: `-44` = 44 BC, year `0` does not exist. Use `App\Support\HistoricalYear` for differences and validation.
 - `prompt` and `reveal_text` are plain text; no HTML is stored or rendered.
 - Images never pass through PHP at request time: they are served from S3/CDN, stored under UUID keys, EXIF/GPS stripped.

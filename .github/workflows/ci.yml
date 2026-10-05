@@ -53,6 +53,7 @@ jobs:
         run: php artisan migrate:fresh --seed --force --database=pgsql
         env:
           DB_DATABASE: historyguessr_test
+          FILESYSTEM_DISK: local
       - name: Pest
         run: vendor/bin/pest
 

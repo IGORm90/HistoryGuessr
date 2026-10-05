@@ -3,13 +3,10 @@
 namespace Database\Seeders;
 
 use App\Models\User;
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder
 {
-    use WithoutModelEvents;
-
     public function run(): void
     {
         // Local development accounts only (password: "password").
@@ -22,5 +19,7 @@ class DatabaseSeeder extends Seeder
             'name' => 'Editor',
             'email' => 'editor@example.com',
         ]);
+
+        $this->call(QuestionSeeder::class);
     }
 }

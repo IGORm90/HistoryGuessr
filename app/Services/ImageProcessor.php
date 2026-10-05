@@ -1,0 +1,106 @@
+<?php
+
+namespace App\Services;
+
+use App\Exceptions\InvalidImageException;
+use Illuminate\Contracts\Filesystem\Filesystem;
+use Illuminate\Support\Str;
+use Intervention\Image\Drivers\Imagick\Driver;
+use Intervention\Image\Encoders\WebpEncoder;
+use Intervention\Image\ImageManager;
+use Intervention\Image\Interfaces\ImageInterface;
+use Intervention\Image\Interfaces\ImageManagerInterface;
+use Throwable;
+
+/**
+ * Turns an untrusted upload into web-ready WebP variants:
+ * verifies the real MIME type, decodes, auto-orients, strips EXIF/GPS and re-encodes.
+ */
+class ImageProcessor
+{
+    public const array ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+
+    public const int MAX_BYTES = 15 * 1024 * 1024;
+
+    public const int LARGE_EDGE = 1600;
+
+    public const int MEDIUM_EDGE = 960;
+
+    private const int QUALITY = 82;
+
+    private ImageManagerInterface $manager;
+
+    public function __construct()
+    {
+        $this->manager = ImageManager::usingDriver(Driver::class, autoOrientation: true, decodeAnimation: false, strip: true);
+    }
+
+    /**
+     * Processes a question photo into large and medium variants under a fresh opaque key.
+     */
+    public function processQuestionImage(Filesystem $disk, string $originalPath): ProcessedImage
+    {
+        $binary = $this->readVerified($disk, $originalPath);
+        $directory = 'questions/'.Str::uuid();
+
+        $large = $this->resize($binary, self::LARGE_EDGE);
+        $largePath = "{$directory}/large.webp";
+        $disk->put($largePath, $this->encode($large), 'public');
+
+        $medium = $this->resize($binary, self::MEDIUM_EDGE);
+        $mediumPath = "{$directory}/medium.webp";
+        $disk->put($mediumPath, $this->encode($medium), 'public');
+
+        return new ProcessedImage($largePath, $mediumPath, $large->width(), $large->height());
+    }
+
+    /**
+     * Re-encodes a single image (e.g. a quiz cover) and returns the WebP binary.
+     */
+    public function processToWebp(string $binary, int $maxEdge): string
+    {
+        $this->assertAllowedBinary($binary);
+
+        return $this->encode($this->resize($binary, $maxEdge));
+    }
+
+    public function assertAllowedBinary(string $binary): void
+    {
+        if (strlen($binary) > self::MAX_BYTES) {
+            throw new InvalidImageException('Image exceeds the maximum allowed size.');
+        }
+
+        $mime = (new \finfo(FILEINFO_MIME_TYPE))->buffer($binary);
+
+        if (! in_array($mime, self::ALLOWED_MIME_TYPES, true)) {
+            throw new InvalidImageException("Unsupported image type: {$mime}");
+        }
+    }
+
+    private function readVerified(Filesystem $disk, string $path): string
+    {
+        $binary = $disk->get($path);
+
+        if ($binary === null) {
+            throw new InvalidImageException("Original image not found: {$path}");
+        }
+
+        $this->assertAllowedBinary($binary);
+
+        return $binary;
+    }
+
+    private function resize(string $binary, int $maxEdge): ImageInterface
+    {
+        try {
+            return $this->manager->decodeBinary($binary)->scaleDown($maxEdge, $maxEdge);
+        } catch (Throwable $e) {
+            throw new InvalidImageException('Image could not be decoded.', previous: $e);
+        }
+    }
+
+    private function encode(ImageInterface $image): string
+    {
+        return (string) $image->encode(new WebpEncoder(quality: self::QUALITY, strip: true));
+    }
+}

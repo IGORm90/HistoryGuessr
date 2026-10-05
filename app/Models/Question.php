@@ -5,9 +5,11 @@ namespace App\Models;
 use App\Enums\PublicationStatus;
 use App\Enums\QuestionDifficulty;
 use App\Models\Concerns\HasPublicId;
+use App\Observers\QuestionObserver;
 use App\Support\HistoricalYear;
 use Carbon\CarbonImmutable;
 use Database\Factories\QuestionFactory;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -38,6 +40,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property PublicationStatus $status
  * @property CarbonImmutable|null $published_at
  */
+#[ObservedBy(QuestionObserver::class)]
 class Question extends Model
 {
     /** @use HasFactory<QuestionFactory> */

@@ -5,6 +5,7 @@ use App\Models\Answer;
 use App\Models\GameSession;
 use App\Models\Question;
 use App\Models\Quiz;
+use App\Models\User;
 use Illuminate\Database\QueryException;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
@@ -122,3 +123,9 @@ it('prevents deleting a question that has answers', function () {
 
     $answer->question->delete();
 })->throws(QueryException::class);
+
+it('treats a malformed public id as not found', function () {
+    $this->actingAs(User::factory()->create());
+
+    $this->get('/admin/questions/5/edit')->assertNotFound();
+});

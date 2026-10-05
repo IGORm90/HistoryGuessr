@@ -22,7 +22,8 @@ class QuestionFactory extends Factory
         return [
             'title' => fake()->sentence(3),
             'prompt' => fake()->sentence(12),
-            'image_original_path' => "originals/{$key}.jpg",
+            // No original: factories model already-processed images and must not trigger the processing job.
+            'image_original_path' => null,
             'image_large_path' => "questions/{$key}/large.webp",
             'image_medium_path' => "questions/{$key}/medium.webp",
             'image_width' => 1600,

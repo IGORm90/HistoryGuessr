@@ -44,6 +44,16 @@ Dev logins: `admin@example.com` / `editor@example.com`, password `password`.
 - Years are signed integers: `-44` = 44 BC, year `0` does not exist. Use `App\Support\HistoricalYear` for differences and validation.
 - `prompt` and `reveal_text` are plain text; no HTML is stored or rendered.
 - Images never pass through PHP at request time: they are served from S3/CDN, stored under UUID keys, EXIF/GPS stripped.
+  Question photos: the admin uploads a private original to `originals/`; `QuestionObserver` dispatches `ProcessQuestionImage`, which uses `App\Services\ImageProcessor` to write public `questions/{uuid}/{large,medium}.webp`. Quiz covers are processed synchronously on upload.
+- Only `questions/*` and `quizzes/*` are publicly readable in the bucket; originals are reached via presigned URLs. Locally they are signed against `AWS_PUBLIC_ENDPOINT` by `App\Support\Filesystem\PublicPresigningS3Adapter`.
+- A malformed UUID in a route resolves to 404 (`HasPublicId::resolveRouteBindingQuery`), never a database error.
+
+## Admin (Filament)
+
+- Resources live in `app/Filament/Resources/{Questions,Quizzes,Users}` with separate `Schemas/` and `Tables/` classes.
+- Status changes go through `App\Filament\Actions\PublicationActions` → `App\Actions\Admin\{PublishQuestion,PublishQuiz,ChangePublicationStatus}`. Never set `status = published` directly in a form.
+- Editors and admins manage content; only admins manage users (Policies in `app/Policies`). Answered questions and played quizzes cannot be deleted — archive them.
+- The map field is `App\Filament\Forms\Components\LeafletLocationPicker` (Alpine component in `resources/js/admin/location-picker.ts`, loaded via a panel render hook). Shared Leaflet setup is in `resources/js/lib/leaflet.ts`.
 
 ## Frontend rules
 

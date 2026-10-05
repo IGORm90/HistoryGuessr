@@ -4,6 +4,7 @@ use App\Exceptions\InvalidImageException;
 use App\Jobs\ProcessQuestionImage;
 use App\Models\Question;
 use App\Services\ImageProcessor;
+use App\Services\QuestionCache;
 use Illuminate\Support\Facades\Storage;
 use Tests\Support\ImageFixtures;
 
@@ -88,7 +89,7 @@ it('replaces previous variants and deletes them', function () {
 it('ignores stale jobs whose original was replaced', function () {
     $question = Question::factory()->incomplete()->create();
 
-    (new ProcessQuestionImage($question->id, 'originals/old.jpg'))->handle(app(ImageProcessor::class));
+    (new ProcessQuestionImage($question->id, 'originals/old.jpg'))->handle(app(ImageProcessor::class), app(QuestionCache::class));
 
     expect($question->refresh()->image_large_path)->toBeNull();
 });

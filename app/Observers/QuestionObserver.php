@@ -4,9 +4,12 @@ namespace App\Observers;
 
 use App\Jobs\ProcessQuestionImage;
 use App\Models\Question;
+use App\Services\QuestionCache;
 
 class QuestionObserver
 {
+    public function __construct(private readonly QuestionCache $cache) {}
+
     public function created(Question $question): void
     {
         $this->dispatchProcessing($question);
@@ -17,6 +20,16 @@ class QuestionObserver
         if ($question->wasChanged('image_original_path')) {
             $this->dispatchProcessing($question);
         }
+    }
+
+    public function saved(Question $question): void
+    {
+        $this->cache->forget($question->id);
+    }
+
+    public function deleted(Question $question): void
+    {
+        $this->cache->forget($question->id);
     }
 
     private function dispatchProcessing(Question $question): void

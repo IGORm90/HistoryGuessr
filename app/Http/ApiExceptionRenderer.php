@@ -2,6 +2,7 @@
 
 namespace App\Http;
 
+use App\Exceptions\GameException;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -24,6 +25,7 @@ class ApiExceptionRenderer
         }
 
         [$status, $code, $message] = match (true) {
+            $e instanceof GameException => [$e->getStatusCode(), $e->errorCode, $e->getMessage()],
             $e instanceof ValidationException => [422, 'validation_failed', $e->getMessage()],
             $e instanceof AuthenticationException => [401, 'unauthenticated', 'Unauthenticated.'],
             $e instanceof AuthorizationException => [403, 'forbidden', 'This action is unauthorized.'],

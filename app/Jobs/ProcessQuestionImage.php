@@ -5,6 +5,7 @@ namespace App\Jobs;
 use App\Exceptions\InvalidImageException;
 use App\Models\Question;
 use App\Services\ImageProcessor;
+use App\Services\QuestionCache;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Log;
@@ -23,7 +24,7 @@ class ProcessQuestionImage implements ShouldQueue
         public readonly string $originalPath,
     ) {}
 
-    public function handle(ImageProcessor $processor): void
+    public function handle(ImageProcessor $processor, QuestionCache $cache): void
     {
         $question = Question::find($this->questionId);
 
@@ -51,6 +52,7 @@ class ProcessQuestionImage implements ShouldQueue
             'image_width' => $result->width,
             'image_height' => $result->height,
         ])->saveQuietly();
+        $cache->forget($question->id);
 
         $disk->delete($previous);
     }

@@ -48,6 +48,22 @@ Dev logins: `admin@example.com` / `editor@example.com`, password `password`.
 - Only `questions/*` and `quizzes/*` are publicly readable in the bucket; originals are reached via presigned URLs. Locally they are signed against `AWS_PUBLIC_ENDPOINT` by `App\Support\Filesystem\PublicPresigningS3Adapter`.
 - A malformed UUID in a route resolves to 404 (`HasPublicId::resolveRouteBindingQuery`), never a database error.
 
+## Game API (`/api/v1`)
+
+| Endpoint | Purpose |
+|---|---|
+| `GET quizzes` | Published quizzes with at least one published question |
+| `POST game-sessions` `{quiz_id}` | Start: weighted random sample (`WeightedSampler`), order fixed in `game_session_questions`; 201 + game state |
+| `GET game-sessions/{id}` | Current state; `answer` is present only once the current question is answered (reload recovery) |
+| `POST game-sessions/{id}/answers` | `{question_id, latitude, longitude, year, idempotency_key, duration_ms}`; 201 when created, 200 for an idempotent replay |
+| `POST game-sessions/{id}/advance` `{position}` | Leave `position`; repeating it is a no-op; the last one completes the game |
+| `GET game-sessions/{id}/result` | Per-round scores; 409 until completed |
+
+- Players are anonymous: `EnsureAnonymousPlayer` stores a UUID in the cookie session. Sanctum only starts that session for requests from the SPA origin (`SANCTUM_STATEFUL_DOMAINS`); API tests must send `Referer: APP_URL`.
+- Another player's game is a 404, not a 403. Rule violations are `GameException` (409) with codes like `already_answered`, `question_mismatch`, `answer_required`, `game_not_in_progress`, `quiz_unavailable`.
+- Answers and advances lock the game session row (`lockForUpdate`); resources are unwrapped (`JsonResource::withoutWrapping()`).
+- Game reads go through `QuestionCache` (Redis); `QuestionObserver` and `ProcessQuestionImage` invalidate it.
+
 ## Admin (Filament)
 
 - Resources live in `app/Filament/Resources/{Questions,Quizzes,Users}` with separate `Schemas/` and `Tables/` classes.

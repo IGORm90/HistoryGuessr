@@ -1,0 +1,75 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: historyguessr_test
+          POSTGRES_USER: historyguessr
+          POSTGRES_PASSWORD: secret
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U historyguessr"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+    env:
+      DB_HOST: 127.0.0.1
+      DB_USERNAME: historyguessr
+      DB_PASSWORD: secret
+      REDIS_HOST: 127.0.0.1
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: pdo_pgsql, redis, imagick, intl, bcmath, exif
+          coverage: none
+          tools: composer:v2
+      - name: Composer validate
+        run: composer validate --strict
+      - name: Install dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+      - name: Prepare environment
+        run: cp .env.example .env && php artisan key:generate
+      - name: Pint
+        run: vendor/bin/pint --test
+      - name: PHPStan
+        run: vendor/bin/phpstan analyse --memory-limit=1G --no-progress
+      - name: Migration smoke test
+        run: php artisan migrate:fresh --seed --force --database=pgsql
+        env:
+          DB_DATABASE: historyguessr_test
+      - name: Pest
+        run: vendor/bin/pest
+
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: ESLint
+        run: npm run lint
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Vitest
+        run: npm run test
+      - name: Production build
+        run: npm run build

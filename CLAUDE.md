@@ -1,0 +1,59 @@
+# HistoryGuessr
+
+Web game: the player sees a historical photo, picks a point on a Leaflet map and a year, and gets a server-calculated score.
+Product spec: `mvp-plan.md`. Laravel API + Vue 3 SPA live in one repo and deploy together; the closed admin is Filament.
+
+## Stack
+
+- Laravel 13, PHP 8.4 (Docker), PostgreSQL 17, Redis 7 (cache, sessions, queue), S3-compatible storage (RustFS locally)
+- Filament 5 at `/admin`, roles via `users.role` (`admin` | `editor`) + Policies — no permission packages
+- Vue 3 + TypeScript + Vite, Vue Router, Pinia, Leaflet 1.9.x, Tailwind 4
+- Tests: Pest (backend, runs against PostgreSQL `historyguessr_test`), Vitest (`tests/js`), Playwright (`tests/e2e`)
+
+## Commands
+
+Everything PHP runs inside Docker (`make shell` for a shell). Node tooling runs on the host.
+
+| Command | What it does |
+|---|---|
+| `make setup` | First-time setup: build, install, migrate, seed |
+| `make start` / `make stop` | Start / stop services (app on http://localhost:8080) |
+| `make test` | Pest + Vitest |
+| `make lint` | Pint `--test` + ESLint |
+| `make fix` | Auto-format PHP and TS |
+| `make analyse` | PHPStan (level 6) + `vue-tsc` |
+| `make build` | Production frontend build |
+| `make fresh` | `migrate:fresh --seed` |
+
+Before finishing a task: `make lint analyse test` must be green.
+Dev logins: `admin@example.com` / `editor@example.com`, password `password`.
+
+## Backend rules
+
+- Thin controllers in `app/Http/Controllers/Api/V1`; validation in Form Requests; game operations in `app/Actions/Game/*`.
+- Use Eloquent directly — no repository layer. API output only through API Resources.
+- All `/api/*` errors use the envelope `{ message, code, errors? }` (`app/Http/ApiExceptionRenderer.php`). Throw HTTP exceptions; don't hand-build error JSON.
+- API routes live under `/api/v1`. External identifiers are UUID `public_id`, never sequential ids.
+- **The correct answer (coordinates, year, location name, reveal text) must never appear in a payload before the answer is submitted.** Public question data and reveal data are separate Resources; every endpoint change needs a leak test.
+- Scores are calculated only on the server and persisted at answer time; never accept distance/score from the client.
+- Answer submission is idempotent (`idempotency_key`) and protected by DB unique constraints.
+- Scoring constants live in `config/game.php`.
+- Years are signed integers: `-44` = 44 BC, year `0` does not exist. Use `App\Support\HistoricalYear` for differences and validation.
+- `prompt` and `reveal_text` are plain text; no HTML is stored or rendered.
+- Images never pass through PHP at request time: they are served from S3/CDN, stored under UUID keys, EXIF/GPS stripped.
+
+## Frontend rules
+
+- `<script setup lang="ts">` + Composition API everywhere; typed props/emits.
+- The server is the source of truth for game state; after reload the state is restored via the API.
+- Pinia only for state shared across screens (`stores/game.ts`).
+- All HTTP goes through `resources/js/api/client.ts` (CSRF, `ApiError`); every request has loading / error / retry states (`useAsyncState`).
+- Tile URL and attribution come only from `resources/js/config/map.ts` (env `VITE_MAP_TILE_*`).
+- Coordinates outside Leaflet components are always named: `{ latitude, longitude }`. `[lat, lng]` arrays exist only inside `components/maps`.
+- Page components never touch the Leaflet API directly; wrap it in `components/maps/*` and `useLeafletMap`.
+- Map components: init in `onMounted`, `map.remove()` in `onBeforeUnmount`, `invalidateSize()` after layout changes.
+- Mobile-first layouts.
+
+## Out of scope for the MVP
+
+Registration, OAuth, leaderboards, multiplayer/WebSockets, SSR, microservices, Octane (until a measured need).

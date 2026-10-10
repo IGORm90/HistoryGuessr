@@ -22,7 +22,7 @@ function draw(): void {
     layers?.remove();
     const [from, to] = shortestLine(props.guess, props.correct);
     layers = L.layerGroup([
-        L.polyline([from, to], { color: '#1d2329', weight: 2, dashArray: '6 6', interactive: false }),
+        L.polyline([from, to], { color: '#3b2a1e', weight: 2, dashArray: '6 6', interactive: false }),
         L.marker(from, { icon: guessIcon, interactive: false, title: 'Ваш ответ' }),
         L.marker(to, { icon: correctIcon, interactive: false, title: 'Правильный ответ' }),
     ]).addTo(map.value);

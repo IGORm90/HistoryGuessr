@@ -22,7 +22,9 @@ export const useGameStore = defineStore('game', () => {
 
     // One idempotency key per question, kept until the answer is confirmed, so retries are safe.
     const pendingKeys = new Map<string, string>();
-    let questionShownAt = 0;
+    // When the current question appeared and when it was answered in this tab (ms since epoch); drives the round timer.
+    const questionShownAt = ref(0);
+    const answeredAt = ref<number | null>(null);
 
     const phase = computed<GamePhase>(() => {
         if (!game.value) return 'loading';
@@ -40,7 +42,8 @@ export const useGameStore = defineStore('game', () => {
         if (questionChanged) {
             guess.value = null;
             year.value = null;
-            questionShownAt = Date.now();
+            questionShownAt.value = Date.now();
+            answeredAt.value = null;
         }
         if (state.status === 'in_progress') {
             rememberGame(state.id);
@@ -89,9 +92,10 @@ export const useGameStore = defineStore('game', () => {
                 longitude: guess.value.longitude,
                 year: year.value,
                 idempotency_key: key,
-                duration_ms: questionShownAt ? Date.now() - questionShownAt : null,
+                duration_ms: questionShownAt.value ? Date.now() - questionShownAt.value : null,
             });
             pendingKeys.delete(question.id);
+            answeredAt.value = Date.now();
             // We only submit while unanswered, so adding the score once is correct even for a replayed request.
             game.value = { ...state, answer, total_score: state.total_score + answer.score.total };
         } catch (e) {
@@ -128,10 +132,12 @@ export const useGameStore = defineStore('game', () => {
         guess.value = null;
         year.value = null;
         error.value = null;
+        questionShownAt.value = 0;
+        answeredAt.value = null;
         pendingKeys.clear();
     }
 
-    return { game, guess, year, submitting, advancing, error, phase, canSubmit, applyState, load, start, submit, advance, reset };
+    return { game, guess, year, submitting, advancing, error, phase, canSubmit, questionShownAt, answeredAt, applyState, load, start, submit, advance, reset };
 });
 
 function toApiError(e: unknown): ApiError {

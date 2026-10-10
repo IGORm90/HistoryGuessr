@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatDistance, formatNumber, plural, pluralYears } from '@/utils/format';
+import { formatClock, formatCoordinates, formatDistance, formatNumber, plural, pluralYears } from '@/utils/format';
 
 describe('format utils', () => {
     it('formats scores with Russian grouping', () => {
@@ -18,5 +18,20 @@ describe('format utils', () => {
         expect(pluralYears(11)).toBe('11 лет');
         expect(pluralYears(22)).toBe('22 года');
         expect(plural(5, ['вопрос', 'вопроса', 'вопросов'])).toBe('5 вопросов');
+    });
+});
+
+describe('formatCoordinates', () => {
+    it('names hemispheres in Russian', () => {
+        expect(formatCoordinates({ latitude: 55.75, longitude: 37.62 })).toBe('55.8° с. ш. · 37.6° в. д.');
+        expect(formatCoordinates({ latitude: -33.86, longitude: -70.65 })).toBe('33.9° ю. ш. · 70.7° з. д.');
+    });
+});
+
+describe('formatClock', () => {
+    it('formats elapsed milliseconds as m:ss', () => {
+        expect(formatClock(0)).toBe('0:00');
+        expect(formatClock(65_400)).toBe('1:05');
+        expect(formatClock(-500)).toBe('0:00');
     });
 });

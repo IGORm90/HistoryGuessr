@@ -1,25 +1,30 @@
 @import 'tailwindcss';
-@import '@fontsource-variable/onest';
-@import '@fontsource-variable/literata/opsz.css';
+@import '@fontsource-variable/manrope';
+@import '@fontsource-variable/lora';
 
 @source '../js/**/*.vue';
 @source '../views/**/*.blade.php';
 
 /*
- * Archive palette: silver-gelatin paper, print ink, cyanotype blue, registration-stamp red.
+ * Farmstead palette: beige paper, brown ink and header, hay for actions and guesses, brick red for answers.
  */
 @theme {
-    --color-paper: #e7eaec;
-    --color-paper-raised: #f5f6f7;
-    --color-ink: #1d2329;
-    --color-ink-soft: #4f5a64;
-    --color-rule: #c4cbd1;
-    --color-cyan: #1f4e79;
-    --color-cyan-deep: #163a5b;
-    --color-stamp: #b8322a;
+    --color-paper: #f3ece0;
+    --color-paper-raised: #fffaf1;
+    --color-ink: #3b2a1e;
+    --color-ink-deep: #2b1d14;
+    --color-ink-soft: #6b5a48;
+    --color-rule: #e3d5bc;
+    --color-hay: #d4a94f;
+    --color-hay-deep: #c99a3c;
+    --color-hay-pale: #e6d8bf;
+    --color-umber: #8a5a2b;
+    --color-photo: #5a4334;
+    --color-header-text: #efe3cc;
+    --color-stamp: #b3412a;
 
-    --font-sans: 'Onest Variable', ui-sans-serif, system-ui, sans-serif;
-    --font-serif: 'Literata Variable', ui-serif, Georgia, serif;
+    --font-sans: 'Manrope Variable', ui-sans-serif, system-ui, sans-serif;
+    --font-serif: 'Lora Variable', ui-serif, Georgia, serif;
 }
 
 @layer base {
@@ -31,7 +36,7 @@
     }
 
     :focus-visible {
-        outline: 3px solid var(--color-cyan);
+        outline: 3px solid var(--color-umber);
         outline-offset: 2px;
     }
 
@@ -47,18 +52,104 @@
 
 @layer components {
     .btn-primary {
-        @apply inline-flex items-center justify-center gap-2 rounded-md bg-cyan px-5 py-3 text-base font-semibold text-white transition-colors hover:bg-cyan-deep disabled:cursor-not-allowed disabled:bg-ink-soft/40;
+        @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-hay px-5 py-3 text-base font-extrabold text-ink-deep transition-colors hover:bg-hay-deep disabled:cursor-not-allowed disabled:bg-hay-pale disabled:text-ink-soft;
     }
 
     .btn-secondary {
-        @apply inline-flex items-center justify-center gap-2 rounded-md border border-ink/25 bg-paper-raised px-5 py-3 text-base font-medium text-ink transition-colors hover:border-ink/50;
+        @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-rule bg-paper-raised px-5 py-3 text-base font-semibold text-ink transition-colors hover:border-ink;
+    }
+
+    /* A raised card on the beige page: map, year, score. */
+    .card {
+        @apply rounded-[20px] border border-rule bg-paper-raised p-4;
     }
 
     /* Year set like a date stamp on an archive card. */
     .year-stamp {
         @apply font-serif font-semibold tabular-nums tracking-tight;
-        font-variation-settings: 'opsz' 72;
-    }
+        }
+}
+
+/* Year slider: hay track, brown thumb with a hay ring. */
+.year-range {
+    width: 100%;
+    height: 24px;
+    margin: 0;
+    background: transparent;
+    cursor: pointer;
+    appearance: none;
+}
+
+.year-range::-webkit-slider-runnable-track {
+    height: 6px;
+    border-radius: 3px;
+    background: var(--color-hay-pale);
+}
+
+.year-range::-moz-range-track {
+    height: 6px;
+    border-radius: 3px;
+    background: var(--color-hay-pale);
+}
+
+.year-range::-webkit-slider-thumb {
+    width: 22px;
+    height: 22px;
+    margin-top: -8px;
+    border: 4px solid var(--color-hay);
+    border-radius: 9999px;
+    background: var(--color-ink);
+    appearance: none;
+}
+
+.year-range::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    border: 4px solid var(--color-hay);
+    border-radius: 9999px;
+    background: var(--color-ink);
+}
+
+.year-range:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+/* Leaflet controls in the site palette. */
+.leaflet-container {
+    font-family: var(--font-sans);
+    background: var(--color-hay-pale);
+}
+
+.leaflet-bar {
+    overflow: hidden;
+    border: 1px solid var(--color-rule) !important;
+    border-radius: 12px !important;
+    box-shadow: 0 1px 2px rgb(59 42 30 / 0.12) !important;
+}
+
+.leaflet-bar a,
+.leaflet-bar a:hover {
+    width: 34px !important;
+    height: 34px !important;
+    line-height: 34px !important;
+    border-bottom-color: var(--color-rule) !important;
+    background: var(--color-paper-raised);
+    color: var(--color-ink);
+}
+
+.leaflet-bar a:hover {
+    background: var(--color-paper);
+}
+
+.leaflet-control-attribution {
+    border-top-left-radius: 8px;
+    background: rgb(255 250 241 / 0.85) !important;
+    color: var(--color-ink-soft);
+}
+
+.leaflet-container .leaflet-control-attribution a {
+    color: var(--color-umber);
 }
 
 /* Leaflet markers drawn with CSS so they never depend on image URLs. */
@@ -69,8 +160,8 @@
 }
 
 .marker-guess {
-    background: var(--color-cyan);
-    border: 3px solid #fff;
+    background: var(--color-hay);
+    border: 3px solid var(--color-ink);
 }
 
 .marker-correct {

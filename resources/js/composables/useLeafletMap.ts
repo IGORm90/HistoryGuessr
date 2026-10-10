@@ -22,6 +22,7 @@ export function useLeafletMap(container: Ref<HTMLElement | null>, options: MapOp
             // Keep the view on the map vertically so tall phone screens never show empty grey bands.
             maxBounds: L.latLngBounds([-85, -540], [85, 540]),
             maxBoundsViscosity: 1,
+            attributionControl: false,
             ...options,
         });
         instance.setView(WORLD_VIEW.center, WORLD_VIEW.zoom);

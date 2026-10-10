@@ -31,3 +31,24 @@ export function yearDifference(a: number, b: number): number {
     const diff = Math.abs(a - b);
     return a < 0 !== b < 0 ? diff - 1 : diff;
 }
+
+function toRoman(value: number): string {
+    const numerals: [number, string][] = [
+        [100, 'C'], [90, 'XC'], [50, 'L'], [40, 'XL'], [10, 'X'], [9, 'IX'], [5, 'V'], [4, 'IV'], [1, 'I'],
+    ];
+    let rest = value;
+    let result = '';
+    for (const [amount, numeral] of numerals) {
+        while (rest >= amount) {
+            result += numeral;
+            rest -= amount;
+        }
+    }
+    return result;
+}
+
+/** Century in Roman numerals: 1908 → «XX век», -44 → «I век до н. э.». */
+export function formatCentury(year: number): string {
+    const century = toRoman(Math.ceil(Math.abs(year) / 100));
+    return year < 0 ? `${century} век до н. э.` : `${century} век`;
+}

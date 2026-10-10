@@ -2,7 +2,8 @@
 import { computed, ref } from 'vue';
 import type { PublicQuestion } from '@/types/game';
 
-const props = defineProps<{ image: PublicQuestion['image'] }>();
+/** `fill`: on wide screens the photo takes the height of its grid row instead of its own aspect ratio. */
+const props = withDefaults(defineProps<{ image: PublicQuestion['image']; fill?: boolean }>(), { fill: false });
 
 const failed = ref(false);
 const aspectRatio = computed(() =>
@@ -19,7 +20,11 @@ const srcset = computed(() =>
 </script>
 
 <template>
-    <figure class="overflow-hidden rounded-md bg-ink/90 shadow-[0_1px_0_rgb(0_0_0/0.05)]" :style="{ aspectRatio }">
+    <figure
+        class="relative aspect-(--photo-ratio) overflow-hidden rounded-[20px] bg-photo"
+        :class="fill ? 'lg:aspect-auto lg:h-full lg:min-h-[28rem]' : ''"
+        :style="{ '--photo-ratio': aspectRatio }"
+    >
         <img
             v-if="!failed && (image.large_url || image.medium_url)"
             :src="image.medium_url ?? image.large_url ?? undefined"
@@ -28,11 +33,11 @@ const srcset = computed(() =>
             :width="image.width ?? undefined"
             :height="image.height ?? undefined"
             alt="Историческая фотография, которую нужно определить"
-            class="h-full w-full object-contain"
+            class="absolute inset-0 h-full w-full object-contain"
             decoding="async"
             @error="failed = true"
         >
-        <div v-else class="flex h-full items-center justify-center p-6 text-center text-sm text-white/70">
+        <div v-else class="absolute inset-0 flex items-center justify-center p-6 text-center text-sm text-hay-pale">
             Фотография не загрузилась. Обновите страницу.
         </div>
     </figure>

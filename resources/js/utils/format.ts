@@ -23,3 +23,16 @@ export function plural(count: number, forms: [string, string, string]): string {
 export function pluralYears(count: number): string {
     return plural(count, ['год', 'года', 'лет']);
 }
+
+/** Coordinates for a caption: «55.8° с. ш. · 37.6° в. д.». */
+export function formatCoordinates(point: { latitude: number; longitude: number }): string {
+    const lat = `${Math.abs(point.latitude).toFixed(1)}° ${point.latitude < 0 ? 'ю. ш.' : 'с. ш.'}`;
+    const lng = `${Math.abs(point.longitude).toFixed(1)}° ${point.longitude < 0 ? 'з. д.' : 'в. д.'}`;
+    return `${lat} · ${lng}`;
+}
+
+/** Elapsed time as «m:ss». */
+export function formatClock(ms: number): string {
+    const total = Math.max(0, Math.floor(ms / 1000));
+    return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
+}

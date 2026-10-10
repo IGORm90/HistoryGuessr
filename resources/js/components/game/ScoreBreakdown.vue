@@ -40,7 +40,7 @@ const yearVerdict = computed(() =>
             </div>
         </dl>
 
-        <p class="font-serif text-base leading-relaxed text-ink" style="font-variation-settings: 'opsz' 14">
+        <p class="font-serif text-base leading-relaxed text-ink">
             {{ answer.reveal_text }}
         </p>
 

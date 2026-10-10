@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatYear, fromSignedYear, isValidYear, toSignedYear, yearDifference } from '@/utils/year';
+import { formatCentury, formatYear, fromSignedYear, isValidYear, toSignedYear, yearDifference } from '@/utils/year';
 
 describe('year utils', () => {
     it('formats AD and BC years', () => {
@@ -24,5 +24,15 @@ describe('year utils', () => {
         expect(yearDifference(-1, 1)).toBe(1);
         expect(yearDifference(-44, 14)).toBe(57);
         expect(yearDifference(1900, 1921)).toBe(21);
+    });
+});
+
+describe('formatCentury', () => {
+    it('uses Roman numerals and marks BC centuries', () => {
+        expect(formatCentury(1908)).toBe('XX век');
+        expect(formatCentury(1900)).toBe('XIX век');
+        expect(formatCentury(2001)).toBe('XXI век');
+        expect(formatCentury(-44)).toBe('I век до н. э.');
+        expect(formatCentury(-490)).toBe('V век до н. э.');
     });
 });

@@ -3,7 +3,7 @@ defineProps<{ prompt: string | null }>();
 </script>
 
 <template>
-    <p class="font-serif text-xl leading-snug text-ink sm:text-2xl" style="font-variation-settings: 'opsz' 36">
+    <h1 class="font-serif text-2xl leading-tight font-bold text-ink sm:text-[2.125rem]">
         {{ prompt ?? 'Где и когда сделан этот снимок?' }}
-    </p>
+    </h1>
 </template>

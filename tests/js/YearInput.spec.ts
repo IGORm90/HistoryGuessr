@@ -42,4 +42,23 @@ describe('YearInput', () => {
         expect((wrapper.get('input').element as HTMLInputElement).value).toBe('490');
         expect(wrapper.findAll('[role="radio"]')[1]!.attributes('aria-checked')).toBe('true');
     });
+
+    it('steps from 1900 when the field is empty', async () => {
+        const wrapper = setup();
+        await wrapper.get('[aria-label="На год позже"]').trigger('click');
+        expect(wrapper.props('modelValue')).toBe(1901);
+    });
+
+    it('skips year 0 when stepping into BC', async () => {
+        const wrapper = setup(1);
+        await wrapper.get('[aria-label="На год раньше"]').trigger('click');
+        expect(wrapper.props('modelValue')).toBe(-1);
+        expect(wrapper.findAll('[role="radio"]')[1]!.attributes('aria-checked')).toBe('true');
+    });
+
+    it('shows the century of the entered year', async () => {
+        const wrapper = setup();
+        await wrapper.get('input').setValue('1908');
+        expect(wrapper.text()).toContain('XX век');
+    });
 });

@@ -10,19 +10,32 @@ import QuestionPrompt from '@/components/game/QuestionPrompt.vue';
 import YearInput from '@/components/game/YearInput.vue';
 import ScoreBreakdown from '@/components/game/ScoreBreakdown.vue';
 import RoundProgress from '@/components/game/RoundProgress.vue';
+import RoundTimer from '@/components/game/RoundTimer.vue';
 import GuessMap from '@/components/maps/GuessMap.vue';
 import AnswerMap from '@/components/maps/AnswerMap.vue';
+import ExpandableMap from '@/components/maps/ExpandableMap.vue';
 import NotFoundPage from '@/pages/NotFoundPage.vue';
+import { formatCoordinates } from '@/utils/format';
 
 const props = defineProps<{ gameId: string }>();
 
 const router = useRouter();
 const store = useGameStore();
-const { game, guess, year, phase, canSubmit, submitting, advancing, error } = storeToRefs(store);
+const { game, guess, year, phase, canSubmit, submitting, advancing, error, questionShownAt, answeredAt } = storeToRefs(store);
 
 const mapExpanded = ref(false);
+const answerMapExpanded = ref(false);
 const loading = ref(false);
 const notFound = computed(() => error.value?.status === 404);
+// After a reload of an answered question we don't know how long it took, so the timer shows a dash.
+const timerStartedAt = computed(() => (phase.value === 'revealed' && answeredAt.value === null ? null : questionShownAt.value || null));
+const submitLabel = computed(() => {
+    if (submitting.value) return 'Проверяем…';
+    if (!guess.value) return 'Отметьте место на карте';
+    if (year.value === null) return 'Укажите год';
+    return 'Ответить';
+});
+
 const isLastQuestion = computed(() => game.value !== null && game.value.position >= game.value.question_count);
 
 async function load(): Promise<void> {
@@ -45,6 +58,7 @@ async function submit(): Promise<void> {
 }
 
 async function next(): Promise<void> {
+    answerMapExpanded.value = false;
     await store.advance();
     if (phase.value === 'guessing') {
         await nextTick();
@@ -64,100 +78,95 @@ function retry(): void {
 
     <div v-else class="min-h-screen">
         <AppHeader>
+            <template v-if="game" #center>
+                <RoundTimer :started-at="timerStartedAt" :stopped-at="answeredAt" />
+            </template>
             <RoundProgress
                 v-if="game"
-                class="ml-auto w-full max-w-md"
                 :position="game.position"
                 :total="game.question_count"
                 :score="game.total_score"
-                :answered="phase === 'revealed'"
             />
         </AppHeader>
 
-        <main class="mx-auto max-w-6xl px-4 pb-12 sm:px-6">
-            <div v-if="!game" class="py-10">
+        <main class="mx-auto max-w-[1376px] px-4 pt-7 pb-12 sm:px-8">
+            <div v-if="!game" class="py-4">
                 <ErrorPanel
                     v-if="error"
                     :error="error"
                     :retrying="loading"
                     @retry="load"
                 />
-                <div v-else class="grid gap-6 lg:grid-cols-[minmax(0,1.5fr)_minmax(340px,1fr)]" aria-busy="true">
-                    <div class="aspect-[3/2] animate-pulse rounded-md bg-rule/60" />
-                    <div class="h-96 animate-pulse rounded-md bg-rule/40" />
+                <div v-else class="grid gap-7 lg:grid-cols-[minmax(0,1fr)_400px]" aria-busy="true">
+                    <div class="aspect-[3/2] animate-pulse rounded-[20px] bg-hay-pale" />
+                    <div class="h-96 animate-pulse rounded-[20px] bg-hay-pale/60" />
                 </div>
             </div>
 
-            <div v-else-if="game.question" class="grid gap-6 lg:grid-cols-[minmax(0,1.5fr)_minmax(340px,1fr)] lg:items-start">
-                <div class="lg:sticky lg:top-4">
-                    <QuestionImage :key="game.question.id" :image="game.question.image" />
+            <template v-else-if="game.question">
+                <div class="mb-4 space-y-1">
+                    <p class="text-[0.8125rem] font-bold tracking-[0.12em] text-umber uppercase">Подборка «{{ game.quiz.title }}»</p>
+                    <QuestionPrompt :prompt="game.question.prompt" />
                 </div>
 
-                <div class="space-y-5">
-                    <QuestionPrompt :prompt="game.question.prompt" />
+                <div class="grid gap-7 lg:grid-cols-[minmax(0,1fr)_400px]">
+                    <div>
+                        <QuestionImage :key="game.question.id" :image="game.question.image" fill />
+                    </div>
 
-                    <form v-if="phase === 'guessing'" class="space-y-5" @submit.prevent="submit">
-                        <div
-                            :class="mapExpanded
-                                ? 'fixed inset-0 z-[1000] flex flex-col bg-paper'
-                                : 'relative h-64 overflow-hidden rounded-md border border-rule sm:h-80'"
-                        >
-                            <div v-if="mapExpanded" class="flex items-center justify-between gap-3 px-4 py-3">
-                                <p class="text-sm text-ink-soft">{{ guess ? 'Отметка стоит. Можно передвинуть.' : 'Нажмите на место съёмки' }}</p>
-                                <button type="button" class="btn-primary py-2" @click="mapExpanded = false">Готово</button>
-                            </div>
-                            <div class="min-h-0 flex-1" :class="mapExpanded ? '' : 'h-full'">
-                                <GuessMap v-model="guess" :disabled="submitting" />
-                            </div>
+                    <aside>
+                        <form v-if="phase === 'guessing'" class="space-y-4" @submit.prevent="submit">
+                            <section class="card" aria-labelledby="place-heading">
+                                <div class="mb-3 flex items-baseline justify-between gap-3">
+                                    <h2 id="place-heading" class="text-base font-extrabold">Место</h2>
+                                    <span class="text-xs text-ink-soft tabular-nums">{{ guess ? formatCoordinates(guess) : 'не отмечено' }}</span>
+                                </div>
+                                <ExpandableMap v-model:expanded="mapExpanded">
+                                    <GuessMap v-model="guess" :disabled="submitting" />
+                                </ExpandableMap>
+                            </section>
+
+                            <section class="card">
+                                <YearInput v-model="year" :disabled="submitting" />
+                            </section>
+
+                            <ErrorPanel
+                                v-if="error"
+                                :error="error"
+                                :retrying="submitting"
+                                @retry="retry"
+                            />
+
+                            <button type="submit" class="btn-primary min-h-14 w-full text-[1.0625rem]" :disabled="!canSubmit">
+                                {{ submitLabel }}
+                            </button>
+                        </form>
+
+                        <div v-else-if="phase === 'revealed' && game.answer" class="space-y-4">
+                            <section class="card space-y-4">
+                                <ExpandableMap v-model:expanded="answerMapExpanded">
+                                    <AnswerMap :guess="game.answer.guess" :correct="game.answer.correct" />
+                                </ExpandableMap>
+                                <ScoreBreakdown :answer="game.answer" />
+                            </section>
+                            <ErrorPanel
+                                v-if="error"
+                                :error="error"
+                                :retrying="advancing"
+                                @retry="retry"
+                            />
                             <button
-                                v-if="!mapExpanded"
                                 type="button"
-                                class="absolute right-2 bottom-8 z-[500] rounded-md bg-paper-raised/95 px-3 py-2 text-sm font-medium shadow lg:hidden"
-                                @click="mapExpanded = true"
+                                class="btn-primary min-h-14 w-full text-[1.0625rem]"
+                                :disabled="advancing"
+                                @click="next"
                             >
-                                Развернуть карту
+                                {{ advancing ? 'Загружаем…' : isLastQuestion ? 'Посмотреть итог' : 'Следующий вопрос' }}
                             </button>
                         </div>
-                        <p class="-mt-3 text-sm text-ink-soft">
-                            {{ guess ? 'Место отмечено.' : 'Отметьте место на карте.' }}
-                        </p>
-
-                        <YearInput v-model="year" :disabled="submitting" />
-
-                        <ErrorPanel
-                            v-if="error"
-                            :error="error"
-                            :retrying="submitting"
-                            @retry="retry"
-                        />
-
-                        <button type="submit" class="btn-primary w-full" :disabled="!canSubmit">
-                            {{ submitting ? 'Проверяем…' : 'Ответить' }}
-                        </button>
-                    </form>
-
-                    <div v-else-if="phase === 'revealed' && game.answer" class="space-y-5">
-                        <div class="h-64 overflow-hidden rounded-md border border-rule sm:h-72">
-                            <AnswerMap :guess="game.answer.guess" :correct="game.answer.correct" />
-                        </div>
-                        <ScoreBreakdown :answer="game.answer" />
-                        <ErrorPanel
-                            v-if="error"
-                            :error="error"
-                            :retrying="advancing"
-                            @retry="retry"
-                        />
-                        <button
-                            type="button"
-                            class="btn-primary w-full"
-                            :disabled="advancing"
-                            @click="next"
-                        >
-                            {{ advancing ? 'Загружаем…' : isLastQuestion ? 'Посмотреть итог' : 'Следующий вопрос' }}
-                        </button>
-                    </div>
+                    </aside>
                 </div>
-            </div>
+            </template>
         </main>
     </div>
 </template>

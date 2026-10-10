@@ -83,7 +83,7 @@ Dev logins: `admin@example.com` / `editor@example.com`, password `password`.
 - Map components: init in `onMounted`, `map.remove()` in `onBeforeUnmount`, `invalidateSize()` after layout changes.
 - Mobile-first layouts. On phones the guess map expands to a full-screen sheet (same Leaflet instance; `useLeafletMap` resizes it via ResizeObserver).
 - Game flow lives in `stores/game.ts`: `phase` is derived from server state (`guessing` → `revealed` → `completed`); `submit()` keeps one idempotency key per question until the answer is confirmed; `advance()` sends the current position.
-- Visual language (archive photo + cartography): tokens in `resources/css/app.css` (`paper`, `ink`, `cyan`, `stamp`), Onest for UI, Literata for prompts, reveal text and years (`YearStamp`). Correct answers are marked in `stamp` red, guesses in `cyan`.
+- Visual language (farmstead: brown, hay, beige): tokens in `resources/css/app.css` (`paper` beige page, `paper-raised` cards, `ink` brown text and header, `hay` actions and guesses, `umber` links, `stamp` brick red). Manrope for UI, Lora for headings, prompts, reveal text and years (`YearStamp`). `AppHeader` is the brown bar (a `center` slot holds the game's `RoundTimer`); panels use `.card`; the main action is `.btn-primary` (hay). Correct answers are marked in `stamp` red, guesses in `hay`.
 - Vitest specs live in `tests/js`; Leaflet is mocked there (`vi.mock('@/lib/leaflet')`), coordinate logic is tested in isolation.
 
 ## Out of scope for the MVP

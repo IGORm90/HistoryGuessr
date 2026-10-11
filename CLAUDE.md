@@ -34,7 +34,7 @@ Dev logins: `admin@example.com` / `editor@example.com`, password `password`.
 - Use Eloquent directly — no repository layer. API output only through API Resources.
 - All `/api/*` errors use the envelope `{ message, code, errors? }` (`app/Http/ApiExceptionRenderer.php`). Throw HTTP exceptions; don't hand-build error JSON.
 - API routes live under `/api/v1`. External identifiers are UUID `public_id`, never sequential ids.
-- **The correct answer (coordinates, year, location name, reveal text) must never appear in a payload before the answer is submitted.** Public question data and reveal data are separate Resources; every endpoint change needs a leak test.
+- **The correct answer (answer text, coordinates, year, location name, reveal text) must never appear in a payload before the answer is submitted.** Public question data and reveal data are separate Resources; every endpoint change needs a leak test.
 - Scores are calculated only on the server and persisted at answer time; never accept distance/score from the client.
 - Answer submission is idempotent (`idempotency_key`) and protected by DB unique constraints.
 - Scoring constants live in `config/game.php`.
@@ -42,8 +42,9 @@ Dev logins: `admin@example.com` / `editor@example.com`, password `password`.
 - Integrity rules (year ≠ 0, coordinate ranges, one answer per question, unique idempotency key, `total = geo + year`) are enforced by DB constraints, not only in PHP. CHECK constraints are added with `DB::statement` in migrations.
 - `public_id` is set by the `HasPublicId` model event: don't use `WithoutModelEvents` in seeders.
 - Years are signed integers: `-44` = 44 BC, year `0` does not exist. Use `App\Support\HistoricalYear` for differences and validation.
-- `prompt` and `reveal_text` are plain text; no HTML is stored or rendered.
+- The player sees only the photo (no question text). `answer` (what the photo shows; also the admin title) and `reveal_text` are revealed after answering and are plain text; no HTML is stored or rendered.
 - Images never pass through PHP at request time: they are served from S3/CDN, stored under UUID keys, EXIF/GPS stripped.
+  Livewire temporary uploads use the `local` disk (`config/livewire.php`): its presigned S3 PUT would be signed for the internal `s3:9000` host.
   Question photos: the admin uploads a private original to `originals/`; `QuestionObserver` dispatches `ProcessQuestionImage`, which uses `App\Services\ImageProcessor` to write public `questions/{uuid}/{large,medium}.webp`. Quiz covers are processed synchronously on upload.
 - Only `questions/*` and `quizzes/*` are publicly readable in the bucket; originals are reached via presigned URLs. Locally they are signed against `AWS_PUBLIC_ENDPOINT` by `App\Support\Filesystem\PublicPresigningS3Adapter`.
 - A malformed UUID in a route resolves to 404 (`HasPublicId::resolveRouteBindingQuery`), never a database error.
@@ -83,7 +84,7 @@ Dev logins: `admin@example.com` / `editor@example.com`, password `password`.
 - Map components: init in `onMounted`, `map.remove()` in `onBeforeUnmount`, `invalidateSize()` after layout changes.
 - Mobile-first layouts. On phones the guess map expands to a full-screen sheet (same Leaflet instance; `useLeafletMap` resizes it via ResizeObserver).
 - Game flow lives in `stores/game.ts`: `phase` is derived from server state (`guessing` → `revealed` → `completed`); `submit()` keeps one idempotency key per question until the answer is confirmed; `advance()` sends the current position.
-- Visual language (farmstead: brown, hay, beige): tokens in `resources/css/app.css` (`paper` beige page, `paper-raised` cards, `ink` brown text and header, `hay` actions and guesses, `umber` links, `stamp` brick red). Manrope for UI, Lora for headings, prompts, reveal text and years (`YearStamp`). `AppHeader` is the brown bar (a `center` slot holds the game's `RoundTimer`); panels use `.card`; the main action is `.btn-primary` (hay). Correct answers are marked in `stamp` red, guesses in `hay`.
+- Visual language (farmstead: brown, hay, beige): tokens in `resources/css/app.css` (`paper` beige page, `paper-raised` cards, `ink` brown text and header, `hay` actions and guesses, `umber` links, `stamp` brick red). Manrope for UI, Lora for headings, answers, reveal text and years (`YearStamp`). `AppHeader` is the brown bar (a `center` slot holds the game's `RoundTimer`); panels use `.card`; the main action is `.btn-primary` (hay). Correct answers are marked in `stamp` red, guesses in `hay`.
 - Vitest specs live in `tests/js`; Leaflet is mocked there (`vi.mock('@/lib/leaflet')`), coordinate logic is tested in isolation.
 
 ## Out of scope for the MVP

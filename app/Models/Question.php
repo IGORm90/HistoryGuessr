@@ -20,8 +20,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 /**
  * @property int $id
  * @property string $public_id
- * @property string $title
- * @property string|null $prompt
+ * @property string $answer
  * @property string|null $image_original_path
  * @property string|null $image_large_path
  * @property string|null $image_medium_path
@@ -47,8 +46,7 @@ class Question extends Model
     use HasFactory, HasPublicId;
 
     protected $fillable = [
-        'title',
-        'prompt',
+        'answer',
         'image_original_path',
         'image_large_path',
         'image_medium_path',

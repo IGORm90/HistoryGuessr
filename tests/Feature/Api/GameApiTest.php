@@ -117,6 +117,7 @@ describe('answering', function () {
             ->assertJsonPath('distance_meters', 0)
             ->assertJsonPath('correct.latitude', $question->latitude)
             ->assertJsonPath('correct.year', $question->answer_year)
+            ->assertJsonPath('correct.answer', $question->answer)
             ->assertJsonPath('correct.location_name', $question->location_name)
             ->assertJsonPath('reveal_text', $question->reveal_text)
             ->assertJsonPath('attribution.license', $question->image_license);
@@ -231,6 +232,8 @@ describe('advancing', function () {
         expect($result['total_score'])->toBe($total)
             ->and(array_sum(array_column(array_column($result['rounds'], 'score'), 'total')))->toBe($total)
             ->and(array_column($result['rounds'], 'position'))->toBe([1, 2])
+            ->and($result['rounds'][0]['question']['answer'])
+            ->toBe(Question::where('public_id', $result['rounds'][0]['question']['id'])->value('answer'))
             ->and($result['max_score'])->toBe(20000);
     });
 

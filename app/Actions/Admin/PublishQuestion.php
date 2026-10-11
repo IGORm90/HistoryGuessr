@@ -12,12 +12,11 @@ class PublishQuestion
      * Required for publication, with labels shown to editors.
      */
     private const array REQUIRED = [
-        'prompt' => 'текст вопроса',
         'latitude' => 'широта',
         'longitude' => 'долгота',
         'answer_year' => 'год',
         'location_name' => 'название места',
-        'reveal_text' => 'пояснение после ответа',
+        'reveal_text' => 'описание',
         'source_url' => 'ссылка на источник',
         'image_license' => 'лицензия изображения',
     ];

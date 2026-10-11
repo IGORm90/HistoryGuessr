@@ -8,10 +8,12 @@ use App\Models\Answer;
 use App\Models\Question;
 use App\Models\Quiz;
 use App\Models\User;
+use App\Services\ImageProcessor;
 use Filament\Actions\DeleteAction;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Livewire\Features\SupportFileUploads\FileUploadConfiguration;
 use Livewire\Livewire;
 use Tests\Support\ImageFixtures;
 
@@ -22,7 +24,7 @@ beforeEach(function () {
 
 it('lists questions with formatted years', function () {
     $questions = Question::factory()->count(3)->create();
-    Question::factory()->create(['title' => 'Цезарь', 'answer_year' => -44]);
+    Question::factory()->create(['answer' => 'Цезарь', 'answer_year' => -44]);
 
     Livewire::test(ListQuestions::class)
         ->assertOk()
@@ -45,8 +47,7 @@ it('creates a draft with an uploaded image that gets processed', function () {
 
     Livewire::test(CreateQuestion::class)
         ->fillForm([
-            'title' => 'Мартовские иды',
-            'prompt' => 'Где и когда это произошло?',
+            'answer' => 'Мартовские иды',
             'image_original_path' => $upload,
             'latitude' => 41.895466,
             'longitude' => 12.476768,
@@ -69,7 +70,7 @@ it('creates a draft with an uploaded image that gets processed', function () {
 
 it('allows saving an incomplete draft', function () {
     Livewire::test(CreateQuestion::class)
-        ->fillForm(['title' => 'Идея на потом'])
+        ->fillForm(['answer' => 'Идея на потом'])
         ->call('create')
         ->assertHasNoFormErrors();
 
@@ -80,14 +81,14 @@ it('rejects uploads that are not allowed image types', function () {
     $svg = UploadedFile::fake()->createWithContent('x.svg', '<svg xmlns="http://www.w3.org/2000/svg"></svg>');
 
     Livewire::test(CreateQuestion::class)
-        ->fillForm(['title' => 'Test', 'image_original_path' => $svg])
+        ->fillForm(['answer' => 'Test', 'image_original_path' => $svg])
         ->call('create')
         ->assertHasFormErrors(['image_original_path']);
 });
 
 it('rejects coordinates out of range', function () {
     Livewire::test(CreateQuestion::class)
-        ->fillForm(['title' => 'Test', 'latitude' => 95, 'longitude' => 200])
+        ->fillForm(['answer' => 'Test', 'latitude' => 95, 'longitude' => 200])
         ->call('create')
         ->assertHasFormErrors(['latitude', 'longitude']);
 });
@@ -184,4 +185,9 @@ it('keeps public ids out of the form', function () {
         ->assertOk();
 
     expect(Str::isUuid($question->public_id))->toBeTrue();
+});
+
+it('keeps Livewire temporary uploads off S3 and allows the full image size', function () {
+    expect(FileUploadConfiguration::isUsingS3())->toBeFalse()
+        ->and(FileUploadConfiguration::rules())->toContain('max:'.(ImageProcessor::MAX_BYTES / 1024));
 });

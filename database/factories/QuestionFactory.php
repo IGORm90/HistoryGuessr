@@ -20,8 +20,7 @@ class QuestionFactory extends Factory
         $key = (string) Str::uuid();
 
         return [
-            'title' => fake()->sentence(3),
-            'prompt' => fake()->sentence(12),
+            'answer' => fake()->sentence(3),
             // No original: factories model already-processed images and must not trigger the processing job.
             'image_original_path' => null,
             'image_large_path' => "questions/{$key}/large.webp",
@@ -69,7 +68,6 @@ class QuestionFactory extends Factory
     public function incomplete(): static
     {
         return $this->state(fn (array $attributes) => [
-            'prompt' => null,
             'image_original_path' => null,
             'image_large_path' => null,
             'image_medium_path' => null,

@@ -24,7 +24,7 @@ class QuestionResource extends Resource
 
     protected static ?string $pluralModelLabel = 'вопросы';
 
-    protected static ?string $recordTitleAttribute = 'title';
+    protected static ?string $recordTitleAttribute = 'answer';
 
     protected static ?int $navigationSort = 1;
 

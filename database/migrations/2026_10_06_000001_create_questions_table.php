@@ -12,8 +12,7 @@ return new class extends Migration
         Schema::create('questions', function (Blueprint $table) {
             $table->id();
             $table->uuid('public_id')->unique();
-            $table->string('title');
-            $table->text('prompt')->nullable();
+            $table->string('answer');
 
             $table->string('image_original_path')->nullable();
             $table->string('image_large_path')->nullable();
@@ -46,7 +45,7 @@ return new class extends Migration
         // Drafts may be incomplete; a published question must be playable and properly attributed.
         DB::statement("ALTER TABLE questions ADD CONSTRAINT questions_published_complete CHECK (
             status <> 'published' OR (
-                prompt IS NOT NULL AND image_large_path IS NOT NULL AND image_medium_path IS NOT NULL
+                image_large_path IS NOT NULL AND image_medium_path IS NOT NULL
                 AND latitude IS NOT NULL AND longitude IS NOT NULL AND answer_year IS NOT NULL
                 AND location_name IS NOT NULL AND reveal_text IS NOT NULL
                 AND source_url IS NOT NULL AND image_license IS NOT NULL AND published_at IS NOT NULL

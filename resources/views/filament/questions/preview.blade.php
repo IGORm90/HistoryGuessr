@@ -15,13 +15,13 @@
                 Изображение не обработано
             </div>
         @endif
-        <p class="text-lg">{{ $question->prompt ?? '— вопрос не заполнен —' }}</p>
     </section>
 
     <section class="space-y-2 border-t border-gray-200 pt-4 dark:border-gray-700">
         <h3 class="text-sm font-semibold uppercase tracking-wide text-gray-500">После ответа</h3>
+        <p class="text-lg font-semibold">{{ $question->answer }}</p>
         <p>
-            <strong>{{ $question->location_name ?? '— место не указано —' }}</strong>,
+            {{ $question->location_name ?? '— место не указано —' }},
             {{ $year ?? '— год не указан —' }}
         </p>
         @if ($question->latitude !== null && $question->longitude !== null)
@@ -31,7 +31,7 @@
                      href="https://www.openstreetmap.org/?mlat={{ $question->latitude }}&mlon={{ $question->longitude }}#map=8/{{ $question->latitude }}/{{ $question->longitude }}">открыть на карте</a>
             </p>
         @endif
-        <p class="whitespace-pre-line">{{ $question->reveal_text ?? '— пояснение не заполнено —' }}</p>
+        <p class="whitespace-pre-line">{{ $question->reveal_text ?? '— описание не заполнено —' }}</p>
         <p class="text-xs text-gray-500">
             Фото: {{ $question->image_author ?? 'автор неизвестен' }}
             · {{ $question->image_license ?? 'лицензия не указана' }}

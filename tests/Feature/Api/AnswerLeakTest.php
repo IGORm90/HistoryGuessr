@@ -5,7 +5,7 @@ use App\Models\Quiz;
 use Illuminate\Support\Str;
 
 /**
- * Before the player answers, no endpoint may contain the correct place, year or reveal.
+ * Before the player answers, no endpoint may contain the correct answer, place, year or reveal.
  */
 beforeEach(function () {
     $this->withHeader('Referer', config('app.url').'/');
@@ -32,6 +32,7 @@ function assertNoAnswerLeak(array $payload, Question $question): void
     $raw = json_encode($payload, JSON_UNESCAPED_UNICODE);
     expect($raw)->not->toContain((string) $question->latitude)
         ->and($raw)->not->toContain((string) $question->longitude)
+        ->and($raw)->not->toContain($question->answer)
         ->and($raw)->not->toContain($question->location_name)
         ->and($raw)->not->toContain($question->reveal_text);
 }

@@ -305,8 +305,7 @@ resources/js/
 |---|---|---|
 | `id` | bigint | Внутренний идентификатор |
 | `public_id` | uuid | Идентификатор для API |
-| `title` | varchar | Внутреннее название |
-| `prompt` | text | Вопрос игроку |
+| `answer` | varchar | Ответ: что изображено (показывается после ответа, заголовок в админке) |
 | `image_original_path` | varchar | Оригинал изображения |
 | `image_large_path` | varchar | Большая web-версия |
 | `image_medium_path` | varchar | Средняя web-версия |
@@ -314,7 +313,7 @@ resources/js/
 | `longitude` | decimal(9,6) | Правильная долгота |
 | `answer_year` | integer | Правильный год |
 | `location_name` | varchar | Название места после ответа |
-| `reveal_text` | text | Историческое пояснение |
+| `reveal_text` | text | Описание, показывается после ответа |
 | `source_url` | varchar | Ссылка на источник |
 | `image_author` | varchar nullable | Автор изображения |
 | `image_license` | varchar | Лицензия или public domain |
@@ -673,16 +672,15 @@ Frontend использует `srcset` или выбирает вариант п
 
 Форма разделена на блоки:
 
-1. **Основное** — title, prompt, difficulty.
+1. **Основное** — answer, difficulty, reveal text (описание).
 2. **Изображение** — upload, preview, source, author, license.
 3. **Правильный ответ** — Leaflet picker, latitude, longitude, year, location name.
-4. **После ответа** — reveal text.
-5. **Публикация** — status, published_at.
+4. **Публикация** — status, published_at.
 
 Список вопросов показывает:
 
 - thumbnail;
-- title;
+- answer;
 - year;
 - difficulty;
 - status;
@@ -735,7 +733,7 @@ Bulk actions:
 - Активная игра привязана к анонимной browser session.
 - Админка защищена отдельной авторизацией.
 - Все текстовые значения экранируются.
-- HTML в `prompt` и `reveal_text` либо запрещается, либо очищается allowlist-sanitizer.
+- HTML в `answer` и `reveal_text` либо запрещается, либо очищается allowlist-sanitizer.
 - Upload не доверяет расширению файла.
 - Production secrets не хранятся в репозитории.
 

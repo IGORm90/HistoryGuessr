@@ -106,7 +106,7 @@ function retry(): void {
             <template v-else-if="game.question">
                 <div class="mb-4 space-y-1">
                     <p class="text-[0.8125rem] font-bold tracking-[0.12em] text-umber uppercase">Подборка «{{ game.quiz.title }}»</p>
-                    <QuestionPrompt :prompt="game.question.prompt" />
+                    <QuestionPrompt />
                 </div>
 
                 <div class="grid gap-7 lg:grid-cols-[minmax(0,1fr)_400px]">

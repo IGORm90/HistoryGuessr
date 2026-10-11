@@ -71,7 +71,7 @@ class PublicationActions
                         try {
                             self::publishRecord($record);
                         } catch (PublicationException $e) {
-                            $failed[] = "«{$record->title}»: ".implode('; ', $e->problems);
+                            $failed[] = "«{$record->answer}»: ".implode('; ', $e->problems);
                         }
                     }
 

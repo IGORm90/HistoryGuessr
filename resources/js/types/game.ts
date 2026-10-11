@@ -7,7 +7,6 @@ export type GameStatus = 'in_progress' | 'completed' | 'abandoned';
 
 export type PublicQuestion = {
     id: string;
-    prompt: string | null;
     image: {
         medium_url: string | null;
         large_url: string | null;
@@ -25,7 +24,7 @@ export type Score = {
 export type AnswerReveal = {
     question_id: string;
     guess: Coordinates & { year: number };
-    correct: Coordinates & { year: number; location_name: string };
+    correct: Coordinates & { year: number; answer: string; location_name: string };
     distance_meters: number;
     year_difference: number;
     score: Score;
@@ -54,7 +53,7 @@ export type GameRound = {
     position: number;
     question: {
         id: string;
-        prompt: string | null;
+        answer: string;
         image_url: string | null;
         location_name: string | null;
         year: number | null;

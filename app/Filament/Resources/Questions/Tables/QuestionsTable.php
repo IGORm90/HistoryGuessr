@@ -38,8 +38,8 @@ class QuestionsTable
                     ->disk(fn (): string => config('filesystems.default'))
                     ->visibility('public')
                     ->imageHeight(48),
-                TextColumn::make('title')
-                    ->label('Название')
+                TextColumn::make('answer')
+                    ->label('Ответ')
                     ->searchable()
                     ->limit(60),
                 TextColumn::make('answer_year')

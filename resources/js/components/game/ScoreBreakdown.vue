@@ -16,7 +16,8 @@ const yearVerdict = computed(() =>
     <section aria-live="polite" class="space-y-5">
         <div class="flex items-end justify-between gap-4 border-b border-rule pb-4">
             <div>
-                <p class="text-sm text-ink-soft">{{ answer.correct.location_name }}</p>
+                <h2 class="font-serif text-xl leading-tight font-bold text-ink">{{ answer.correct.answer }}</h2>
+                <p class="mt-1 text-sm text-ink-soft">{{ answer.correct.location_name }}</p>
                 <p class="text-6xl leading-none text-stamp sm:text-7xl">
                     <YearStamp :year="answer.correct.year" />
                 </p>

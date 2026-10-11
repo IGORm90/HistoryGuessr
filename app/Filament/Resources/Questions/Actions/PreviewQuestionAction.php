@@ -19,7 +19,7 @@ class PreviewQuestionAction
             ->label('Предпросмотр')
             ->icon(Heroicon::OutlinedEye)
             ->color('gray')
-            ->modalHeading(fn (Question $record) => $record->title)
+            ->modalHeading(fn (Question $record) => $record->answer)
             ->modalWidth(Width::FourExtraLarge)
             ->modalSubmitAction(false)
             ->modalCancelActionLabel('Закрыть')

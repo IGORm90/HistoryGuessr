@@ -38,6 +38,7 @@ class AnswerRevealResource extends JsonResource
                 'latitude' => $question->latitude,
                 'longitude' => $question->longitude,
                 'year' => $question->answer_year,
+                'answer' => $question->answer,
                 'location_name' => $question->location_name,
             ],
             'distance_meters' => $answer->distance_meters,

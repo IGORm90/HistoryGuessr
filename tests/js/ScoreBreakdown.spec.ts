@@ -7,6 +7,7 @@ describe('ScoreBreakdown', () => {
     it('shows the correct answer, errors and points', () => {
         const text = mount(ScoreBreakdown, { props: { answer: answerReveal() } }).text().replace(/\s+/g, ' ');
 
+        expect(text).toContain('Убийство Юлия Цезаря');
         expect(text).toContain('Рим');
         expect(text).toContain('44 до н. э.');
         expect(text).toContain('1 106 км от цели');

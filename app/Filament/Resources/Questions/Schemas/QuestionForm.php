@@ -32,7 +32,6 @@ class QuestionForm
                 self::basics(),
                 self::image(),
                 self::answer(),
-                self::reveal(),
                 self::publication(),
             ]);
     }
@@ -50,8 +49,9 @@ class QuestionForm
         return Section::make('Основное')
             ->columns(2)
             ->schema([
-                TextInput::make('title')
-                    ->label('Внутреннее название')
+                TextInput::make('answer')
+                    ->label('Ответ')
+                    ->helperText('Показывается игроку после ответа.')
                     ->required()
                     ->maxLength(255),
                 Select::make('difficulty')
@@ -59,11 +59,11 @@ class QuestionForm
                     ->options(QuestionDifficulty::class)
                     ->default(QuestionDifficulty::Medium)
                     ->required(),
-                Textarea::make('prompt')
-                    ->label('Вопрос игроку')
-                    ->helperText('Обычный текст, HTML не поддерживается.')
-                    ->rows(3)
-                    ->maxLength(1000)
+                Textarea::make('reveal_text')
+                    ->label('Описание')
+                    ->helperText('Показывается игроку после ответа. Обычный текст, HTML не поддерживается.')
+                    ->rows(5)
+                    ->maxLength(5000)
                     ->required(self::requiredWhenPublished())
                     ->columnSpanFull(),
             ]);
@@ -182,19 +182,6 @@ class QuestionForm
 
                         return HistoricalYear::fromEra((int) $absolute, (bool) $get('answer_year_bce'))->value;
                     }),
-            ]);
-    }
-
-    private static function reveal(): Section
-    {
-        return Section::make('После ответа')
-            ->schema([
-                Textarea::make('reveal_text')
-                    ->label('Историческое пояснение')
-                    ->helperText('Обычный текст, HTML не поддерживается.')
-                    ->rows(5)
-                    ->maxLength(5000)
-                    ->required(self::requiredWhenPublished()),
             ]);
     }
 

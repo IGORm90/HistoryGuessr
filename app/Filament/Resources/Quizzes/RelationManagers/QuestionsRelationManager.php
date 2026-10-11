@@ -43,7 +43,7 @@ class QuestionsRelationManager extends RelationManager
                     ->disk(fn (): string => config('filesystems.default'))
                     ->visibility('public')
                     ->imageHeight(40),
-                TextColumn::make('title')->label('Название')->searchable(),
+                TextColumn::make('answer')->label('Ответ')->searchable(),
                 TextColumn::make('answer_year')
                     ->label('Год')
                     ->formatStateUsing(fn (?int $state): string => $state === null ? '—' : (new HistoricalYear($state))->format()),
@@ -77,8 +77,8 @@ class QuestionsRelationManager extends RelationManager
                     ->searchable()
                     ->options(fn (): array => Question::query()
                         ->whereNotIn('id', $this->ownerRecord->questions()->select('questions.id'))
-                        ->orderBy('title')
-                        ->pluck('title', 'id')
+                        ->orderBy('answer')
+                        ->pluck('answer', 'id')
                         ->all())
                     ->required(),
                 TextInput::make('weight')

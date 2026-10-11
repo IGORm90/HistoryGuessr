@@ -121,7 +121,8 @@ async function playAgain(): Promise<void> {
                                 </span>
                                 <div class="min-w-0 flex-1">
                                     <p class="text-xs font-semibold text-ink-soft">Раунд {{ round.position }}</p>
-                                    <p class="truncate font-bold">{{ round.question.location_name }}</p>
+                                    <p class="truncate font-bold">{{ round.question.answer }}</p>
+                                    <p class="truncate text-sm text-ink-soft">{{ round.question.location_name }}</p>
                                     <p v-if="round.question.year !== null" class="text-2xl leading-tight text-stamp">
                                         <YearStamp :year="round.question.year" />
                                     </p>

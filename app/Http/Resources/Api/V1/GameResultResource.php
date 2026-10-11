@@ -39,7 +39,7 @@ class GameResultResource extends JsonResource
                     'position' => (int) $question->getRelationValue('pivot')->position,
                     'question' => [
                         'id' => $question->public_id,
-                        'prompt' => $question->prompt,
+                        'answer' => $question->answer,
                         'image_url' => PublicUrl::for($question->image_medium_path),
                         'location_name' => $question->location_name,
                         'year' => $question->answer_year,

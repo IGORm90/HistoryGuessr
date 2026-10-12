@@ -32,6 +32,6 @@ it('loads the location picker script in the panel', function () {
 
     $this->get('/admin/questions/create')
         ->assertOk()
-        ->assertSee('leafletLocationPicker', escape: false)
+        ->assertSee('mapLocationPicker', escape: false)
         ->assertSee('location-picker', escape: false);
 });

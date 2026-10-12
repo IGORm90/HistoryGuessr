@@ -1,43 +1,82 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue';
-import type { LayerGroup } from 'leaflet';
-import { L } from '@/lib/leaflet';
-import { useLeafletMap } from '@/composables/useLeafletMap';
+import {
+    LngLatBounds,
+    createMarker,
+    markerElement,
+    type GeoJSONSource,
+    type MapLibreMap,
+    type Marker,
+} from '@/lib/maplibre';
+import { useMap } from '@/composables/useMap';
 import type { Coordinates } from '@/types/game';
-import { shortestLine } from './coordinates';
+import type { Feature, LineString } from 'geojson';
+import { shortestLine, type LngLatTuple } from './coordinates';
+import MapError from './MapError.vue';
 
 const props = defineProps<{ guess: Coordinates; correct: Coordinates }>();
 
+const LINE_SOURCE = 'answer-line';
+// Region scale, not street scale (MapLibre levels, see config/map.ts).
+const MAX_FIT_ZOOM = 7;
+
 const container = ref<HTMLElement | null>(null);
-const { map } = useLeafletMap(container, { dragging: true, scrollWheelZoom: false });
-let layers: LayerGroup | null = null;
+const { map, ready, error, retry } = useMap(container, { scrollZoom: false });
+let markers: { map: MapLibreMap; guess: Marker; correct: Marker } | null = null;
 
-const guessIcon = L.divIcon({ className: 'marker-guess', iconSize: [18, 18], iconAnchor: [9, 9] });
-const correctIcon = L.divIcon({ className: 'marker-correct', iconSize: [22, 22], iconAnchor: [11, 11] });
-
-function draw(): void {
-    if (!map.value) {
-        return;
-    }
-    layers?.remove();
-    const [from, to] = shortestLine(props.guess, props.correct);
-    layers = L.layerGroup([
-        L.polyline([from, to], { color: '#3b2a1e', weight: 2, dashArray: '6 6', interactive: false }),
-        L.marker(from, { icon: guessIcon, interactive: false, title: 'Ваш ответ' }),
-        L.marker(to, { icon: correctIcon, interactive: false, title: 'Правильный ответ' }),
-    ]).addTo(map.value);
-    map.value.fitBounds(L.latLngBounds([from, to]), { padding: [40, 40], maxZoom: 8 });
+function line(from: LngLatTuple, to: LngLatTuple): Feature<LineString> {
+    return { type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: [from, to] } };
 }
 
-watch(map, draw);
+function draw(): void {
+    const instance = map.value;
+    if (!instance || !ready.value) {
+        return;
+    }
+    const [from, to] = shortestLine(props.guess, props.correct);
+
+    const source = instance.getSource<GeoJSONSource>(LINE_SOURCE);
+    if (source) {
+        source.setData(line(from, to));
+    } else {
+        instance.addSource(LINE_SOURCE, { type: 'geojson', data: line(from, to) });
+        instance.addLayer({
+            id: LINE_SOURCE,
+            type: 'line',
+            source: LINE_SOURCE,
+            layout: { 'line-cap': 'round' },
+            paint: { 'line-color': '#3b2a1e', 'line-width': 2, 'line-dasharray': [3, 3] },
+        });
+    }
+
+    if (markers?.map !== instance) {
+        markers = {
+            map: instance,
+            guess: createMarker({ element: markerElement('marker-guess marker-small', 'Ваш ответ') }),
+            correct: createMarker({ element: markerElement('marker-correct', 'Правильный ответ') }),
+        };
+        markers.guess.setLngLat(from).addTo(instance);
+        markers.correct.setLngLat(to).addTo(instance);
+    } else {
+        markers.guess.setLngLat(from);
+        markers.correct.setLngLat(to);
+    }
+
+    instance.fitBounds(new LngLatBounds(from, to), { padding: 40, maxZoom: MAX_FIT_ZOOM, animate: false });
+}
+
+watch(ready, draw);
 watch(() => [props.guess, props.correct], draw, { deep: true });
 </script>
 
 <template>
-    <div
-        ref="container"
-        class="h-full w-full"
-        role="img"
-        aria-label="Карта с вашим и правильным ответом"
-    />
+    <div class="relative h-full w-full">
+        <div
+            ref="container"
+            class="h-full w-full"
+            role="img"
+            aria-label="Карта с вашим и правильным ответом"
+        />
+        <MapError v-if="error" @retry="retry" />
+    </div>
 </template>

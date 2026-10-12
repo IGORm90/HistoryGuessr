@@ -31,3 +31,7 @@ Thumbs.db
 /playwright-report
 /test-results
 /coverage
+
+# Self-hosted map data (docker/maps/README.md)
+/docker/maps/data/
+/docker/maps/assets/

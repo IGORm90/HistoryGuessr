@@ -26,6 +26,17 @@ export default defineConfig({
             '@': fileURLToPath(new URL('./resources/js', import.meta.url)),
         },
     },
+    build: {
+        // MapLibre with the map style is one chunk, loaded only by the game page and the admin picker.
+        chunkSizeWarningLimit: 1300,
+        rolldownOptions: {
+            output: {
+                codeSplitting: {
+                    groups: [{ name: 'map', test: /node_modules[\\/]maplibre-gl|resources[\\/]js[\\/](lib[\\/]maplibre|config[\\/]map)/ }],
+                },
+            },
+        },
+    },
     server: {
         host: '0.0.0.0',
         hmr: { host: 'localhost' },

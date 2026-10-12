@@ -1,7 +1,7 @@
 <x-dynamic-component :component="$getFieldWrapperView()" :field="$field">
     <div
         wire:ignore
-        x-data="leafletLocationPicker({
+        x-data="mapLocationPicker({
             latitude: $wire.$entangle(@js($getLatitudeStatePath())),
             longitude: $wire.$entangle(@js($getLongitudeStatePath())),
             disabled: @js($isDisabled()),

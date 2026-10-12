@@ -105,6 +105,28 @@ services:
              aws --endpoint-url http://s3:9000 s3api create-bucket --bucket historyguessr;
              aws --endpoint-url http://s3:9000 s3api put-bucket-policy --bucket historyguessr --policy file:///policy.json"
 
+  # Self-hosted vector map: OSM tiles + glyphs/sprites, reached only through nginx at /maps/.
+  # Data lives outside Git and the image (docker/maps/README.md); `make maps` fetches it.
+  maps:
+    image: versatiles/versatiles:v5.1.0-alpine@sha256:6f62bfd13af6ffae3c5492db975c4f8128d06e95a26ba08ef308879954b22bc2
+    command:
+      - serve
+      - --disable-api
+      - --static
+      - "[/assets]/assets"
+      - "[osm]/data/current.versatiles"
+    volumes:
+      - ./docker/maps/data:/data:ro
+      - ./docker/maps/assets:/assets:ro
+    restart: unless-stopped
+    mem_limit: 512m
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/tiles/osm/tiles.json"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
   mailpit:
     image: axllent/mailpit:latest
     ports:

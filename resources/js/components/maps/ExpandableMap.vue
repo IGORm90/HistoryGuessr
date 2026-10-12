@@ -4,7 +4,7 @@ import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
 /**
  * Map frame with a zoom-out button inside the map. Expanded, the map grows to twice its size with
  * the same aspect ratio, anchored at its top-right corner, and floats over the page. The same map
- * element (and Leaflet instance) only changes size; `useLeafletMap` resizes it via ResizeObserver.
+ * element (and MapLibre instance) only changes size; `useMap` resizes it via ResizeObserver.
  * Where there is no room to grow sideways (phones), it doubles its height instead.
  */
 const expanded = defineModel<boolean>('expanded', { default: false });

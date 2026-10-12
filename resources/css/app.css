@@ -70,44 +70,47 @@
         }
 }
 
-/* Leaflet controls in the site palette. */
-.leaflet-container {
+/* MapLibre controls in the site palette. */
+.maplibregl-map {
     font-family: var(--font-sans);
     background: var(--color-hay-pale);
 }
 
-.leaflet-bar {
+.maplibregl-ctrl-group {
     overflow: hidden;
-    border: 1px solid var(--color-rule) !important;
+    border: 1px solid var(--color-rule);
     border-radius: 12px !important;
     box-shadow: 0 1px 2px rgb(59 42 30 / 0.12) !important;
+    background: var(--color-paper-raised) !important;
 }
 
-.leaflet-bar a,
-.leaflet-bar a:hover {
+.maplibregl-ctrl-group button {
     width: 34px !important;
     height: 34px !important;
-    line-height: 34px !important;
-    border-bottom-color: var(--color-rule) !important;
-    background: var(--color-paper-raised);
-    color: var(--color-ink);
+    background-color: var(--color-paper-raised);
 }
 
-.leaflet-bar a:hover {
-    background: var(--color-paper);
+.maplibregl-ctrl-group button + button {
+    border-top-color: var(--color-rule) !important;
 }
 
-.leaflet-control-attribution {
+.maplibregl-ctrl-group button:not(:disabled):hover {
+    background-color: var(--color-paper) !important;
+}
+
+/* OpenStreetMap attribution is required: restyled, never hidden. */
+.maplibregl-ctrl-attrib {
     border-top-left-radius: 8px;
     background: rgb(255 250 241 / 0.85) !important;
     color: var(--color-ink-soft);
+    font-size: 11px;
 }
 
-.leaflet-container .leaflet-control-attribution a {
-    color: var(--color-umber);
+.maplibregl-ctrl-attrib a {
+    color: var(--color-umber) !important;
 }
 
-/* Leaflet markers drawn with CSS so they never depend on image URLs. */
+/* Map markers drawn with CSS so they never depend on image URLs. */
 .marker-guess,
 .marker-correct {
     border-radius: 9999px;
@@ -115,11 +118,22 @@
 }
 
 .marker-guess {
+    width: 20px;
+    height: 20px;
     background: var(--color-hay);
     border: 3px solid var(--color-ink);
+    cursor: grab;
+}
+
+.marker-guess.marker-small {
+    width: 18px;
+    height: 18px;
+    cursor: default;
 }
 
 .marker-correct {
+    width: 22px;
+    height: 22px;
     background: var(--color-stamp);
     border: 3px solid #fff;
 }

@@ -1,5 +1,5 @@
-import type { Map as LeafletMap, Marker, LeafletMouseEvent } from 'leaflet';
-import { L, createTileLayer } from '@/lib/leaflet';
+import { createMap, createMarker, type MapLibreMap, type MapMouseEvent, type Marker } from '@/lib/maplibre';
+import { fromLngLat } from '@/components/maps/coordinates';
 
 type PickerConfig = {
     latitude: unknown;
@@ -14,9 +14,7 @@ type PickerComponent = PickerConfig & {
     destroy(): void;
 };
 
-const DEFAULT_CENTER: [number, number] = [30, 10];
-const DEFAULT_ZOOM = 2;
-const SELECTED_ZOOM = 6;
+const SELECTED_ZOOM = 5;
 
 function toNumber(value: unknown): number | null {
     if (value === null || value === undefined || value === '') {
@@ -26,16 +24,12 @@ function toNumber(value: unknown): number | null {
     return Number.isFinite(number) ? number : null;
 }
 
-function round(value: number): number {
-    return Math.round(value * 1e6) / 1e6;
-}
-
 /**
- * Alpine component behind the Filament LeafletLocationPicker field.
+ * Alpine component behind the Filament MapLocationPicker field.
  * `latitude` / `longitude` are entangled with the sibling numeric inputs, so both stay in sync.
  */
-function leafletLocationPicker(config: PickerConfig) {
-    let map: LeafletMap | null = null;
+function mapLocationPicker(config: PickerConfig) {
+    let map: MapLibreMap | null = null;
     let marker: Marker | null = null;
     let resizeObserver: ResizeObserver | null = null;
 
@@ -43,25 +37,27 @@ function leafletLocationPicker(config: PickerConfig) {
         ...config,
 
         init(this: PickerComponent) {
-            map = L.map(this.$refs.map, { worldCopyJump: true }).setView(DEFAULT_CENTER, DEFAULT_ZOOM);
-            createTileLayer().addTo(map);
+            const instance = createMap(this.$refs.map);
+            map = instance;
+
+            const select = (position: { lng: number; lat: number }) => {
+                const point = fromLngLat(position);
+                this.latitude = point.latitude;
+                this.longitude = point.longitude;
+            };
 
             const place = (lat: number, lng: number, pan: boolean) => {
-                if (!map) {
-                    return;
-                }
                 if (marker) {
-                    marker.setLatLng([lat, lng]);
+                    marker.setLngLat([lng, lat]);
                 } else {
-                    marker = L.marker([lat, lng], { draggable: !this.disabled }).addTo(map);
-                    marker.on('dragend', () => {
-                        const position = marker!.getLatLng().wrap();
-                        this.latitude = round(position.lat);
-                        this.longitude = round(position.lng);
-                    });
+                    const created = createMarker({ draggable: !this.disabled, color: '#b3412a' })
+                        .setLngLat([lng, lat])
+                        .addTo(instance);
+                    created.on('dragend', () => select(created.getLngLat()));
+                    marker = created;
                 }
                 if (pan) {
-                    map.setView([lat, lng], Math.max(map.getZoom(), SELECTED_ZOOM));
+                    instance.jumpTo({ center: [lng, lat], zoom: Math.max(instance.getZoom(), SELECTED_ZOOM) });
                 }
             };
 
@@ -76,20 +72,17 @@ function leafletLocationPicker(config: PickerConfig) {
 
             syncFromState(true);
 
-            map.on('click', (event: LeafletMouseEvent) => {
-                if (this.disabled) {
-                    return;
+            instance.on('click', (event: MapMouseEvent) => {
+                if (!this.disabled) {
+                    select(event.lngLat);
                 }
-                const position = event.latlng.wrap();
-                this.latitude = round(position.lat);
-                this.longitude = round(position.lng);
             });
 
             this.$watch('latitude', () => syncFromState(false));
             this.$watch('longitude', () => syncFromState(false));
 
             // The map may be rendered inside a collapsed section or a modal.
-            resizeObserver = new ResizeObserver(() => map?.invalidateSize());
+            resizeObserver = new ResizeObserver(() => map?.resize());
             resizeObserver.observe(this.$refs.map);
         },
 
@@ -105,5 +98,5 @@ function leafletLocationPicker(config: PickerConfig) {
 type AlpineGlobal = { data: (name: string, factory: (config: PickerConfig) => object) => void };
 
 document.addEventListener('alpine:init', () => {
-    (window as unknown as { Alpine: AlpineGlobal }).Alpine.data('leafletLocationPicker', leafletLocationPicker);
+    (window as unknown as { Alpine: AlpineGlobal }).Alpine.data('mapLocationPicker', mapLocationPicker);
 });

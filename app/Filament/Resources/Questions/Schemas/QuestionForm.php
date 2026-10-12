@@ -3,7 +3,7 @@
 namespace App\Filament\Resources\Questions\Schemas;
 
 use App\Enums\QuestionDifficulty;
-use App\Filament\Forms\Components\LeafletLocationPicker;
+use App\Filament\Forms\Components\MapLocationPicker;
 use App\Models\Question;
 use App\Services\ImageProcessor;
 use App\Support\HistoricalYear;
@@ -129,7 +129,7 @@ class QuestionForm
     {
         return Section::make('Правильный ответ')
             ->schema([
-                LeafletLocationPicker::make('location_picker')
+                MapLocationPicker::make('location_picker')
                     ->fields('latitude', 'longitude'),
                 Grid::make(2)->schema([
                     TextInput::make('latitude')

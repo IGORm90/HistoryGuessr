@@ -9,9 +9,9 @@ use Illuminate\Support\Str;
  * Map for picking a point. It owns no state of its own: it reads and writes the sibling
  * latitude / longitude fields, which stay editable as numbers for precise correction.
  */
-class LeafletLocationPicker extends Field
+class MapLocationPicker extends Field
 {
-    protected string $view = 'filament.forms.components.leaflet-location-picker';
+    protected string $view = 'filament.forms.components.map-location-picker';
 
     protected string $latitudeField = 'latitude';
 

@@ -1,13 +1,14 @@
 # HistoryGuessr
 
-Web game: the player sees a historical photo, picks a point on a Leaflet map and a year, and gets a server-calculated score.
+Web game: the player sees a historical photo, picks a point on a map and a year, and gets a server-calculated score.
 Product spec: `mvp-plan.md`. Laravel API + Vue 3 SPA live in one repo and deploy together; the closed admin is Filament.
 
 ## Stack
 
 - Laravel 13, PHP 8.4 (Docker), PostgreSQL 17, Redis 7 (cache, sessions, queue), S3-compatible storage (RustFS locally)
 - Filament 5 at `/admin`, roles via `users.role` (`admin` | `editor`) + Policies — no permission packages
-- Vue 3 + TypeScript + Vite, Vue Router, Pinia, Leaflet 1.9.x, Tailwind 4
+- Vue 3 + TypeScript + Vite, Vue Router, Pinia, MapLibre GL JS, Tailwind 4
+- Self-hosted map: VersaTiles server (service `maps`) with OSM Shortbread tiles, behind nginx at `/maps/` (`docker/maps/README.md`)
 - Tests: Pest (backend, runs against PostgreSQL `historyguessr_test`), Vitest (`tests/js`), Playwright (`tests/e2e`)
 
 ## Commands
@@ -22,8 +23,10 @@ Everything PHP runs inside Docker (`make shell` for a shell). Node tooling runs 
 | `make lint` | Pint `--test` + ESLint |
 | `make fix` | Auto-format PHP and TS |
 | `make analyse` | PHPStan (level 6) + `vue-tsc` |
-| `make build` | Production frontend build |
+| `make build` | Production frontend build + scan for external map services |
 | `make fresh` | `migrate:fresh --seed` |
+| `make maps` / `make maps-smoke` | Fetch and activate the dev map data (zoom 0–8) / check it through nginx |
+| `make maps-style` | Regenerate the map style (`resources/js/config/map-style.json`) |
 
 Before finishing a task: `make lint analyse test` must be green.
 Dev logins: `admin@example.com` / `editor@example.com`, password `password`.
@@ -70,7 +73,7 @@ Dev logins: `admin@example.com` / `editor@example.com`, password `password`.
 - Resources live in `app/Filament/Resources/{Questions,Quizzes,Users}` with separate `Schemas/` and `Tables/` classes.
 - Status changes go through `App\Filament\Actions\PublicationActions` → `App\Actions\Admin\{PublishQuestion,PublishQuiz,ChangePublicationStatus}`. Never set `status = published` directly in a form.
 - Editors and admins manage content; only admins manage users (Policies in `app/Policies`). Answered questions and played quizzes cannot be deleted — archive them.
-- The map field is `App\Filament\Forms\Components\LeafletLocationPicker` (Alpine component in `resources/js/admin/location-picker.ts`, loaded via a panel render hook). Shared Leaflet setup is in `resources/js/lib/leaflet.ts`.
+- The map field is `App\Filament\Forms\Components\MapLocationPicker` (Alpine component `mapLocationPicker` in `resources/js/admin/location-picker.ts`, loaded via a panel render hook). Shared MapLibre setup is in `resources/js/lib/maplibre.ts`.
 
 ## Frontend rules
 
@@ -78,14 +81,15 @@ Dev logins: `admin@example.com` / `editor@example.com`, password `password`.
 - The server is the source of truth for game state; after reload the state is restored via the API.
 - Pinia only for state shared across screens (`stores/game.ts`).
 - All HTTP goes through `resources/js/api/client.ts` (CSRF, `ApiError`); every request has loading / error / retry states (`useAsyncState`).
-- Tile URL and attribution come only from `resources/js/config/map.ts` (env `VITE_MAP_TILE_*`).
-- Coordinates outside Leaflet components are always named: `{ latitude, longitude }`. `[lat, lng]` arrays exist only inside `components/maps`.
-- Page components never touch the Leaflet API directly; wrap it in `components/maps/*` and `useLeafletMap`.
-- Map components: init in `onMounted`, `map.remove()` in `onBeforeUnmount`, `invalidateSize()` after layout changes.
-- Mobile-first layouts. On phones the guess map expands to a full-screen sheet (same Leaflet instance; `useLeafletMap` resizes it via ResizeObserver).
+- The map is fully self-hosted: style, tiles, glyphs and sprites are same-origin under `/maps/`. Never add an external map URL (tiles, fonts, CDN, API keys); `tests/js/map-style.spec.ts` and `npm run check:maps` guard this.
+- The style is generated (`make maps-style`, from `scripts/maps/build-style.mjs`) and committed; zoom limits live in `resources/js/config/map.ts`. Labels are English (`name_en`, fallback `name`).
+- Coordinates outside map components are always named: `{ latitude, longitude }`. MapLibre's `[lng, lat]` arrays exist only inside `components/maps` (`coordinates.ts`).
+- Page components never touch the MapLibre API directly; wrap it in `components/maps/*` and `useMap` (which owns create/`resize()`/`remove()`, `ready` after style load, `error` + `retry()`).
+- Layers and sources (e.g. the answer line) are added only once `ready` is true; update them with `setData`, never by recreating the map.
+- Mobile-first layouts. On phones the guess map expands to a full-screen sheet (same MapLibre instance; `useMap` resizes it via ResizeObserver).
 - Game flow lives in `stores/game.ts`: `phase` is derived from server state (`guessing` → `revealed` → `completed`); `submit()` keeps one idempotency key per question until the answer is confirmed; `advance()` sends the current position.
 - Visual language (farmstead: brown, hay, beige): tokens in `resources/css/app.css` (`paper` beige page, `paper-raised` cards, `ink` brown text and header, `hay` actions and guesses, `umber` links, `stamp` brick red). Manrope for UI, Lora for headings, answers, reveal text and years (`YearStamp`). `AppHeader` is the brown bar (a `center` slot holds the game's `RoundTimer`); panels use `.card`; the main action is `.btn-primary` (hay). Correct answers are marked in `stamp` red, guesses in `hay`.
-- Vitest specs live in `tests/js`; Leaflet is mocked there (`vi.mock('@/lib/leaflet')`), coordinate logic is tested in isolation.
+- Vitest specs live in `tests/js`; MapLibre is mocked there (`vi.mock('@/lib/maplibre')`, no WebGL in jsdom), coordinate logic is tested in isolation.
 
 ## Out of scope for the MVP
 

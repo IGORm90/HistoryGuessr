@@ -1,64 +1,97 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mount } from '@vue/test-utils';
 import YearInput from '@/components/game/YearInput.vue';
 
-function setup(modelValue: number | null = null) {
+function setup(modelValue: number | null = null, props: Record<string, unknown> = {}) {
     const wrapper = mount(YearInput, {
-        props: { modelValue, 'onUpdate:modelValue': (value: number | null) => wrapper.setProps({ modelValue: value }) },
+        props: {
+            modelValue,
+            'onUpdate:modelValue': (value: number | null) => wrapper.setProps({ modelValue: value }),
+            ...props,
+        },
     });
     return wrapper;
 }
 
+const slider = (wrapper: ReturnType<typeof setup>) => wrapper.get('[role="slider"]');
+
 describe('YearInput', () => {
-    it('emits a signed year for AD input', async () => {
-        const wrapper = setup();
-        await wrapper.get('input').setValue('1921');
-        expect(wrapper.props('modelValue')).toBe(1921);
+    beforeEach(() => {
+        // jsdom has no canvas; reduced motion makes every move instant.
+        vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(null);
+        vi.stubGlobal('matchMedia', (query: string) => ({ matches: query.includes('reduce'), media: query }));
     });
 
-    it('emits a negative year when "до н. э." is chosen', async () => {
-        const wrapper = setup();
-        await wrapper.get('input').setValue('44');
-        await wrapper.findAll('[role="radio"]')[1]!.trigger('click');
-        expect(wrapper.props('modelValue')).toBe(-44);
+    afterEach(() => {
+        vi.restoreAllMocks();
+        vi.unstubAllGlobals();
     });
 
-    it('emits null and shows an error for invalid years', async () => {
-        const wrapper = setup(1900);
-        await wrapper.get('input').setValue('0');
+    it('stays empty until the ruler is touched', () => {
+        const wrapper = setup();
         expect(wrapper.props('modelValue')).toBeNull();
-        expect(wrapper.text()).toContain('Год — от 1 до 2100');
+        expect(wrapper.get('[data-test="century"]').text()).toBe('не выбран');
+        expect(slider(wrapper).attributes('aria-valuenow')).toBeUndefined();
     });
 
-    it('drops non-digit characters', async () => {
+    it('steps from 1900 with the arrow keys', async () => {
         const wrapper = setup();
-        await wrapper.get('input').setValue('19a2-1');
-        expect((wrapper.get('input').element as HTMLInputElement).value).toBe('1921');
-        expect(wrapper.props('modelValue')).toBe(1921);
-    });
-
-    it('hydrates BC years', () => {
-        const wrapper = setup(-490);
-        expect((wrapper.get('input').element as HTMLInputElement).value).toBe('490');
-        expect(wrapper.findAll('[role="radio"]')[1]!.attributes('aria-checked')).toBe('true');
-    });
-
-    it('steps from 1900 when the field is empty', async () => {
-        const wrapper = setup();
-        await wrapper.get('[aria-label="На год позже"]').trigger('click');
+        await slider(wrapper).trigger('keydown', { key: 'ArrowRight' });
         expect(wrapper.props('modelValue')).toBe(1901);
+        await slider(wrapper).trigger('keydown', { key: 'ArrowLeft', shiftKey: true });
+        expect(wrapper.props('modelValue')).toBe(1891);
     });
 
-    it('skips year 0 when stepping into BC', async () => {
+    it('moves by a century with the ±100 buttons', async () => {
+        const wrapper = setup(1500);
+        await wrapper.get('[aria-label="На 100 лет позже"]').trigger('click');
+        expect(wrapper.props('modelValue')).toBe(1600);
+        await wrapper.get('[aria-label="На 100 лет раньше"]').trigger('click');
+        await wrapper.get('[aria-label="На 100 лет раньше"]').trigger('click');
+        expect(wrapper.props('modelValue')).toBe(1400);
+    });
+
+    it('skips year 0 between AD 1 and 1 BC', async () => {
         const wrapper = setup(1);
-        await wrapper.get('[aria-label="На год раньше"]').trigger('click');
+        await slider(wrapper).trigger('keydown', { key: 'ArrowLeft' });
         expect(wrapper.props('modelValue')).toBe(-1);
-        expect(wrapper.findAll('[role="radio"]')[1]!.attributes('aria-checked')).toBe('true');
+        await slider(wrapper).trigger('keydown', { key: 'ArrowRight' });
+        expect(wrapper.props('modelValue')).toBe(1);
     });
 
-    it('shows the century of the entered year', async () => {
-        const wrapper = setup();
-        await wrapper.get('input').setValue('1908');
+    it('keeps the year between 1000 BC and AD 2020', async () => {
+        const wrapper = setup(1980);
+        await wrapper.get('[aria-label="На 100 лет позже"]').trigger('click');
+        expect(wrapper.props('modelValue')).toBe(2020);
+        await slider(wrapper).trigger('keydown', { key: 'Home' });
+        expect(wrapper.props('modelValue')).toBe(-1000);
+        await wrapper.get('[aria-label="На 100 лет раньше"]').trigger('click');
+        expect(wrapper.props('modelValue')).toBe(-1000);
+    });
+
+    it('shows BC years with their era and century', () => {
+        const wrapper = setup(-490);
+        expect(wrapper.get('[data-test="year"]').text()).toBe('490до н. э.');
+        expect(wrapper.get('[data-test="century"]').text()).toBe('V век до н. э.');
+        expect(slider(wrapper).attributes('aria-valuetext')).toBe('490 г. до н. э.');
+    });
+
+    it('shows the century of the chosen year', () => {
+        const wrapper = setup(1908);
         expect(wrapper.text()).toContain('XX век');
+    });
+
+    it('returns to the empty state when the model is reset', async () => {
+        const wrapper = setup(1500);
+        await wrapper.setProps({ modelValue: null });
+        expect(wrapper.get('[data-test="century"]').text()).toBe('не выбран');
+        expect(wrapper.get('[data-test="year"]').text()).toContain('1900');
+    });
+
+    it('ignores input while disabled', async () => {
+        const wrapper = setup(null, { disabled: true });
+        await slider(wrapper).trigger('keydown', { key: 'ArrowRight' });
+        await wrapper.get('[aria-label="На 100 лет позже"]').trigger('click');
+        expect(wrapper.props('modelValue')).toBeNull();
     });
 });

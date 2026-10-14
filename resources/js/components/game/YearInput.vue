@@ -4,19 +4,26 @@ import { DEFAULT_YEAR } from '@/config/game';
 import { formatCentury, formatYear } from '@/utils/year';
 
 /**
- * Year picker: a ruler that is dragged under a fixed needle, with the chosen year set above it.
+ * Year picker: a scale bar (like the one on a map) dragged under a fixed needle, with the chosen year
+ * set above it (`stack`) or to its left (`inline`, the year panel over the game map).
  * Drag (with inertia), click a mark, scroll, use ← → (Shift ×10), PageUp/PageDown or the ±100 buttons.
  * The model stays `null` until the player touches the ruler.
  */
-const props = withDefaults(defineProps<{ disabled?: boolean; inputId?: string; min?: number; max?: number }>(), {
-    disabled: false,
-    inputId: 'year-input',
-    min: -1000,
-    max: 2020,
-});
+const props = withDefaults(
+    defineProps<{ disabled?: boolean; inputId?: string; min?: number; max?: number; layout?: 'stack' | 'inline' }>(),
+    {
+        disabled: false,
+        inputId: 'year-input',
+        min: -1000,
+        max: 2020,
+        layout: 'stack',
+    },
+);
 const model = defineModel<number | null>({ default: null });
 
-const PX_PER_YEAR = 2;
+// About 220 years across the ~760 px ruler of the desktop year panel.
+const PX_PER_YEAR = 3.5;
+const SEGMENT = 50;
 const BIG_STEP = 100;
 
 /* Ruler positions are continuous and skip the non-existent year 0: position 0 is 1 BC, position 1 is AD 1. */
@@ -267,9 +274,11 @@ function onKeydown(event: KeyboardEvent): void {
 
 let context: CanvasRenderingContext2D | null = null;
 let width = 0;
-let height = 0;
-const palette = { ink: '#3b2a1e', rule: '#e3d5bc', stamp: '#b3412a' };
+const palette = { ink: '#1d2b2a', paper: '#f1eee3', stamp: '#c8442b' };
 let resizeObserver: ResizeObserver | null = null;
+
+const BAR_TOP = 12;
+const BAR_HEIGHT = 10;
 
 function readPalette(): void {
     const styles = getComputedStyle(document.documentElement);
@@ -287,11 +296,16 @@ function resize(): void {
     }
     const ratio = window.devicePixelRatio || 1;
     width = ruler.value.clientWidth;
-    height = ruler.value.clientHeight;
+    const height = ruler.value.clientHeight;
     canvas.value.width = Math.round(width * ratio);
     canvas.value.height = Math.round(height * ratio);
     context.setTransform(ratio, 0, 0, ratio, 0, 0);
     draw();
+}
+
+/** Ruler position of a segment boundary; the boundary at «year 0» lies between 1 BC and AD 1. */
+function boundaryPosition(year: number): number {
+    return year === 0 ? 0.5 : toPosition(year);
 }
 
 function draw(): void {
@@ -300,57 +314,46 @@ function draw(): void {
         return;
     }
     const centre = width / 2;
-    const base = height - 12;
     const at = position.value;
-    ctx.clearRect(0, 0, width, height);
+    const x = (pos: number): number => centre + (pos - at) * PX_PER_YEAR;
+    ctx.clearRect(0, 0, width, ctx.canvas.height);
 
-    ctx.globalAlpha = 1;
-    ctx.fillStyle = palette.rule;
-    ctx.fillRect(0, base, width, 1);
-
-    // The BC / AD boundary: a thin brick-red line between 1 BC and AD 1.
-    const boundary = centre + (0.5 - at) * PX_PER_YEAR;
-    if (boundary > 0 && boundary < width && minPosition.value <= 0 && maxPosition.value >= 1) {
-        ctx.globalAlpha = 0.55;
-        ctx.fillStyle = palette.stamp;
-        ctx.fillRect(Math.round(boundary), 8, 1, base - 8);
-    }
-
-    const from = Math.max(minPosition.value, Math.floor(at - centre / PX_PER_YEAR) - 1);
-    const to = Math.min(maxPosition.value, Math.ceil(at + centre / PX_PER_YEAR) + 1);
+    // Alternating ink / paper segments of 50 years, like the scale bar of a map.
+    const firstYear = Math.max(props.min, toYear(at - centre / PX_PER_YEAR) - SEGMENT);
+    const lastYear = Math.min(props.max, toYear(at + centre / PX_PER_YEAR) + SEGMENT);
+    const minX = x(minPosition.value);
+    const maxX = x(maxPosition.value);
     ctx.textAlign = 'center';
-    ctx.textBaseline = 'alphabetic';
-    ctx.strokeStyle = palette.ink;
-    ctx.fillStyle = palette.ink;
+    ctx.textBaseline = 'top';
 
-    for (let mark = from; mark <= to; mark++) {
-        const year = mark <= 0 ? mark - 1 : mark;
-        const x = Math.round(centre + (mark - at) * PX_PER_YEAR) + 0.5;
+    for (let year = Math.floor(firstYear / SEGMENT) * SEGMENT; year <= lastYear; year += SEGMENT) {
+        const left = Math.max(minX, x(boundaryPosition(year)));
+        const right = Math.min(maxX, x(boundaryPosition(year + SEGMENT)));
+        if (right > left) {
+            ctx.fillStyle = Math.floor(year / SEGMENT) % 2 === 0 ? palette.ink : palette.paper;
+            ctx.fillRect(left, BAR_TOP, right - left, BAR_HEIGHT);
+        }
+
+        const mark = x(boundaryPosition(year));
+        if (year === 0 || mark < minX - 1 || mark > maxX + 1) {
+            continue;
+        }
         const major = year % 100 === 0;
-        const half = year % 50 === 0;
-        if (year % 5 !== 0) {
-            continue; // single years are too dense to draw at this scale
-        }
-        let length = 6;
-        let alpha = 0.25;
-        if (major) [length, alpha] = [24, 0.85];
-        else if (half) [length, alpha] = [17, 0.55];
-        else if (year % 10 === 0) [length, alpha] = [10, 0.4];
-
-        ctx.globalAlpha = alpha;
-        ctx.lineWidth = major ? 2 : 1;
-        ctx.beginPath();
-        ctx.moveTo(x, base);
-        ctx.lineTo(x, base - length);
-        ctx.stroke();
-
-        if (half) {
-            ctx.globalAlpha = major ? 0.9 : 0.55;
-            ctx.font = `${major ? 700 : 500} ${major ? 12 : 11}px 'Manrope Variable', ui-sans-serif, sans-serif`;
-            ctx.fillText(year < 0 ? `${-year} до н. э.` : String(year), x, base - length - 5);
-        }
+        ctx.fillStyle = palette.ink;
+        ctx.font = `${major ? 700 : 500} 12px 'Barlow Condensed', ui-sans-serif, sans-serif`;
+        ctx.fillText(year < 0 ? `${-year} до н. э.` : String(year), mark, BAR_TOP + BAR_HEIGHT + 4);
     }
-    ctx.globalAlpha = 1;
+
+    ctx.strokeStyle = palette.ink;
+    ctx.lineWidth = 1;
+    ctx.strokeRect(Math.max(0, minX) + 0.5, BAR_TOP + 0.5, Math.min(width, maxX) - Math.max(0, minX) - 1, BAR_HEIGHT - 1);
+
+    // The BC / AD boundary: a brick-red tick through the bar.
+    const boundary = x(0.5);
+    if (boundary > 0 && boundary < width && minPosition.value <= 0 && maxPosition.value >= 1) {
+        ctx.fillStyle = palette.stamp;
+        ctx.fillRect(Math.round(boundary) - 1, BAR_TOP - 4, 2, BAR_HEIGHT + 8);
+    }
 }
 
 watch(position, draw);
@@ -377,71 +380,81 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-    <div :class="{ 'opacity-60': disabled }">
-        <div class="flex items-baseline justify-between gap-3">
-            <span :id="`${inputId}-label`" class="text-base font-extrabold">Год</span>
-            <span class="text-xs text-ink-soft" data-test="century">{{ touched ? century : 'не выбран' }}</span>
+    <div
+        :class="[
+            { 'opacity-60': disabled },
+            layout === 'inline' ? 'grid grid-cols-[auto_minmax(0,1fr)] items-center gap-4 lg:gap-7' : 'flex flex-col gap-2',
+        ]"
+    >
+        <div :class="layout === 'stack' ? 'flex items-baseline justify-between gap-3' : ''">
+            <p class="eyebrow text-xs">
+                <span :id="`${inputId}-label`">Год</span> ·
+                <span data-test="century">{{ touched ? century : 'не выбран' }}</span>
+            </p>
+            <p
+                class="flex items-baseline gap-1.5 whitespace-nowrap transition-colors"
+                :class="touched ? 'text-ink' : 'text-ink/30'"
+                aria-hidden="true"
+                data-test="year"
+            >
+                <span class="year-stamp text-[44px] leading-none" :class="{ 'lg:text-[64px]': layout === 'inline' }">{{ absolute }}</span>
+                <span class="font-serif text-base font-semibold" :class="touched ? 'text-ink-soft' : ''">{{ eraLabel }}</span>
+            </p>
         </div>
 
-        <p
-            class="mt-2 flex items-baseline justify-center gap-1.5 whitespace-nowrap transition-colors"
-            :class="touched ? 'text-ink' : 'text-ink/30'"
-            aria-hidden="true"
-            data-test="year"
-        >
-            <span class="year-stamp text-5xl leading-none">{{ absolute }}</span>
-            <span class="text-sm font-semibold" :class="touched ? 'text-ink-soft' : ''">{{ eraLabel }}</span>
-        </p>
-
-        <div class="relative mt-3">
-            <div
-                :id="inputId"
-                ref="ruler"
-                role="slider"
-                :tabindex="disabled ? -1 : 0"
-                :aria-labelledby="`${inputId}-label`"
-                :aria-valuemin="min"
-                :aria-valuemax="max"
-                :aria-valuenow="touched ? current : undefined"
-                :aria-valuetext="touched ? formatYear(current) : 'не выбран'"
-                :aria-disabled="disabled || undefined"
-                class="year-ruler relative h-16 overflow-hidden rounded-xl border bg-paper transition-colors"
-                :class="[
-                    disabled ? 'cursor-not-allowed border-rule' : dragging ? 'cursor-grabbing border-ink-soft' : 'cursor-grab border-rule hover:border-ink-soft',
-                ]"
-                @pointerdown="onPointerDown"
-                @pointermove="onPointerMove"
-                @pointerup="onPointerUp"
-                @pointercancel="onPointerUp"
-                @wheel="onWheel"
-                @keydown="onKeydown"
-            >
-                <canvas ref="canvas" class="year-ruler__canvas" aria-hidden="true" />
+        <div class="flex min-w-0 flex-col gap-1.5">
+            <div class="relative">
+                <div
+                    :id="inputId"
+                    ref="ruler"
+                    role="slider"
+                    :tabindex="disabled ? -1 : 0"
+                    :aria-labelledby="`${inputId}-label`"
+                    :aria-valuemin="min"
+                    :aria-valuemax="max"
+                    :aria-valuenow="touched ? current : undefined"
+                    :aria-valuetext="touched ? formatYear(current) : 'не выбран'"
+                    :aria-disabled="disabled || undefined"
+                    class="year-ruler relative h-10"
+                    :class="disabled ? 'cursor-not-allowed' : dragging ? 'cursor-grabbing' : 'cursor-grab'"
+                    @pointerdown="onPointerDown"
+                    @pointermove="onPointerMove"
+                    @pointerup="onPointerUp"
+                    @pointercancel="onPointerUp"
+                    @wheel="onWheel"
+                    @keydown="onKeydown"
+                >
+                    <canvas ref="canvas" class="year-ruler__canvas" aria-hidden="true" />
+                </div>
+                <div class="year-ruler__needle" aria-hidden="true" />
             </div>
-            <div class="year-ruler__needle" aria-hidden="true"><i /><i /></div>
-            <button
-                type="button"
-                class="year-ruler__step left-2"
-                :disabled="disabled"
-                aria-label="На 100 лет раньше"
-                @click="step(-BIG_STEP)"
-            >
-                −100
-            </button>
-            <button
-                type="button"
-                class="year-ruler__step right-2"
-                :disabled="disabled"
-                aria-label="На 100 лет позже"
-                @click="step(BIG_STEP)"
-            >
-                +100
-            </button>
-        </div>
 
-        <p class="mt-2 text-center text-xs text-ink-soft">
-            {{ touched ? 'Тяните линейку · ← → · Shift ×10' : 'Потяните линейку, чтобы выбрать год' }}
-        </p>
+            <div class="flex items-center justify-between gap-3">
+                <span class="text-xs tracking-[0.1em] text-ink-soft uppercase">
+                    {{ touched ? 'Тяните шкалу · ← → · Shift ×10' : 'Потяните шкалу, чтобы выбрать год' }}
+                </span>
+                <span class="flex shrink-0 gap-1.5">
+                    <button
+                        type="button"
+                        class="year-ruler__step"
+                        :disabled="disabled"
+                        aria-label="На 100 лет раньше"
+                        @click="step(-BIG_STEP)"
+                    >
+                        −100
+                    </button>
+                    <button
+                        type="button"
+                        class="year-ruler__step"
+                        :disabled="disabled"
+                        aria-label="На 100 лет позже"
+                        @click="step(BIG_STEP)"
+                    >
+                        +100
+                    </button>
+                </span>
+            </div>
+        </div>
     </div>
 </template>
 
@@ -458,66 +471,49 @@ onBeforeUnmount(() => {
     width: 100%;
     height: 100%;
     pointer-events: none;
-    mask-image: linear-gradient(90deg, transparent 0, #000 16%, #000 84%, transparent 100%);
+    mask-image: linear-gradient(90deg, transparent 0, #000 12%, #000 88%, transparent 100%);
 }
 
-/* Fixed needle: a hay line with diamond ends, the colour of the player's guesses. */
+/* Fixed needle: a brick-red line with a diamond above the bar. */
 .year-ruler__needle {
     position: absolute;
-    top: -5px;
-    bottom: -5px;
+    top: 0;
     left: 50%;
-    width: 0;
+    width: 2px;
+    height: 28px;
+    margin-left: -1px;
+    background: var(--color-stamp);
     pointer-events: none;
 }
 
 .year-ruler__needle::before {
     content: '';
     position: absolute;
-    top: 5px;
-    bottom: 5px;
-    left: -1px;
-    width: 2px;
-    background: var(--color-hay-deep);
-}
-
-.year-ruler__needle i {
-    position: absolute;
-    left: -6px;
+    top: -6px;
+    left: -5px;
     width: 12px;
     height: 12px;
     transform: rotate(45deg);
-    border: 2px solid var(--color-ink);
-    border-radius: 2px;
-    background: var(--color-hay);
-}
-
-.year-ruler__needle i:first-child {
-    top: 0;
-}
-
-.year-ruler__needle i:last-child {
-    bottom: 0;
+    background: var(--color-stamp);
 }
 
 .year-ruler__step {
-    position: absolute;
-    top: 7px;
-    z-index: 1;
-    padding: 5px 8px;
-    border: 1px solid var(--color-rule);
-    border-radius: 8px;
-    background: var(--color-paper-raised);
+    padding: 4px 8px;
+    border: 1px solid var(--color-ink);
+    background: var(--color-paper);
     color: var(--color-ink);
     font-size: 12px;
     font-weight: 700;
     line-height: 1;
     font-variant-numeric: tabular-nums;
-    transition: border-color 0.15s;
+    transition:
+        background-color 0.15s,
+        color 0.15s;
 }
 
 .year-ruler__step:hover:not(:disabled) {
-    border-color: var(--color-ink);
+    background: var(--color-ink);
+    color: var(--color-paper);
 }
 
 .year-ruler__step:disabled {

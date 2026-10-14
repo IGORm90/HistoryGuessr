@@ -210,6 +210,13 @@ describe('advancing', function () {
             ->and($result['rounds'][0]['question']['answer'])
             ->toBe(Question::where('public_id', $result['rounds'][0]['question']['id'])->value('answer'))
             ->and($result['max_score'])->toBe(20000);
+
+        // The result map pins every correct place once the game is over.
+        $question = Question::where('public_id', $result['rounds'][0]['question']['id'])->firstOrFail();
+        expect($result['rounds'][0]['question'])->toMatchArray([
+            'latitude' => $question->latitude,
+            'longitude' => $question->longitude,
+        ]);
     });
 
     it('rejects answers after completion', function () {

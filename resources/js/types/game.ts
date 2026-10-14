@@ -76,6 +76,8 @@ export type GameRound = {
         answer: string;
         image_url: string | null;
         location_name: string | null;
+        latitude: number | null;
+        longitude: number | null;
         year: number | null;
     };
     timed_out: boolean;

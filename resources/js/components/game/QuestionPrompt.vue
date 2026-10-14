@@ -1,5 +1,5 @@
 <template>
-    <h1 class="font-serif text-2xl leading-tight font-bold text-ink sm:text-[2.125rem]">
+    <p class="font-serif text-xl italic">
         Где и когда сделан этот снимок?
-    </h1>
+    </p>
 </template>

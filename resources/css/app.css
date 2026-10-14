@@ -1,30 +1,33 @@
 @import 'tailwindcss';
-@import '@fontsource-variable/manrope';
-@import '@fontsource-variable/lora';
+@import '@fontsource/barlow-condensed/400.css';
+@import '@fontsource/barlow-condensed/500.css';
+@import '@fontsource/barlow-condensed/600.css';
+@import '@fontsource/barlow-condensed/700.css';
+@import '@fontsource-variable/newsreader/opsz.css';
+@import '@fontsource-variable/newsreader/opsz-italic.css';
 
 @source '../js/**/*.vue';
 @source '../views/**/*.blade.php';
 
 /*
- * Farmstead palette: beige paper, brown ink and header, hay for actions and guesses, brick red for answers.
+ * «Atlas» palette: the map is a sheet of an atlas — paper, dark ink frames, a red stamp for the
+ * correct answer and accents, teal for the player's guesses.
+ * Barlow Condensed and Newsreader have no Cyrillic: Russian text falls back to the system font.
  */
 @theme {
-    --color-paper: #f3ece0;
-    --color-paper-raised: #fffaf1;
-    --color-ink: #3b2a1e;
-    --color-ink-deep: #2b1d14;
-    --color-ink-soft: #6b5a48;
-    --color-rule: #e3d5bc;
-    --color-hay: #d4a94f;
-    --color-hay-deep: #c99a3c;
-    --color-hay-pale: #e6d8bf;
-    --color-umber: #8a5a2b;
-    --color-photo: #5a4334;
-    --color-header-text: #efe3cc;
-    --color-stamp: #b3412a;
+    --color-paper: #f1eee3;
+    --color-paper-raised: #ffffff;
+    --color-ink: #1d2b2a;
+    --color-ink-soft: #3e4b49;
+    --color-rule: rgb(29 43 42 / 0.25);
+    --color-grid: rgb(29 43 42 / 0.14);
+    --color-stamp: #c8442b;
+    --color-guess: #2e6f6a;
+    --color-muted-pin: #8a8f86;
+    --color-hatch: #e4e0d2;
 
-    --font-sans: 'Manrope Variable', ui-sans-serif, system-ui, sans-serif;
-    --font-serif: 'Lora Variable', ui-serif, Georgia, serif;
+    --font-sans: 'Barlow Condensed', ui-sans-serif, system-ui, sans-serif;
+    --font-serif: 'Newsreader Variable', ui-serif, Georgia, serif;
 }
 
 @layer base {
@@ -36,7 +39,7 @@
     }
 
     :focus-visible {
-        outline: 3px solid var(--color-umber);
+        outline: 3px solid var(--color-stamp);
         outline-offset: 2px;
     }
 
@@ -52,93 +55,252 @@
 
 @layer components {
     .btn-primary {
-        @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-hay px-5 py-3 text-base font-extrabold text-ink-deep transition-colors hover:bg-hay-deep disabled:cursor-not-allowed disabled:bg-hay-pale disabled:text-ink-soft;
+        @apply inline-flex min-h-[54px] items-center justify-center gap-2 bg-ink px-6 font-sans text-lg font-semibold tracking-[0.14em] text-paper uppercase transition-colors hover:bg-stamp disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-ink;
     }
 
     .btn-secondary {
-        @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-rule bg-paper-raised px-5 py-3 text-base font-semibold text-ink transition-colors hover:border-ink;
+        @apply inline-flex min-h-[54px] items-center justify-center gap-2 border border-ink bg-transparent px-6 font-sans text-lg font-semibold tracking-[0.14em] text-ink uppercase transition-colors hover:bg-ink hover:text-paper disabled:cursor-not-allowed disabled:opacity-50;
     }
 
-    /* A raised card on the beige page: map, year, score. */
-    .card {
-        @apply rounded-[20px] border border-rule bg-paper-raised p-4;
+    /* A panel set like a cartouche on the map: paper with a double ink frame. */
+    .sheet {
+        @apply border border-ink bg-paper;
+        box-shadow: 0 0 0 4px var(--color-paper), 0 0 0 5px var(--color-ink);
+    }
+
+    /* A plain translucent panel over the map (legend, year). */
+    .panel {
+        @apply border border-ink;
+        background: rgb(241 238 227 / 0.95);
+    }
+
+    /* The frame of the atlas sheet drawn over a full-screen map. */
+    .sheet-frame {
+        @apply pointer-events-none absolute inset-[14px] border border-ink;
+        box-shadow: inset 0 0 0 5px rgb(241 238 227 / 0.9), inset 0 0 0 6px var(--color-ink);
+    }
+
+    .eyebrow {
+        @apply font-sans text-[13px] font-semibold tracking-[0.14em] text-ink-soft uppercase;
+    }
+
+    /* A photo pinned over the map like a polaroid. */
+    .polaroid {
+        @apply relative bg-paper-raised;
+        padding: 10px 10px 14px;
+        box-shadow: 0 16px 40px rgb(29 43 42 / 0.3);
+    }
+
+    .polaroid::before {
+        content: '';
+        position: absolute;
+        top: -8px;
+        left: 50%;
+        z-index: 1;
+        width: 16px;
+        height: 16px;
+        margin-left: -8px;
+        border-radius: 9999px;
+        background: var(--color-stamp);
+        box-shadow: 0 2px 4px rgb(0 0 0 / 0.35);
+    }
+
+    /* Loading placeholder: hatching, no rounded corners. */
+    .skeleton {
+        background: repeating-linear-gradient(135deg, var(--color-hatch) 0 2px, var(--color-paper) 2px 10px);
     }
 
     /* A rubber stamp for a round that ran out of time. */
     .time-up-stamp {
-        @apply inline-block -rotate-2 rounded-md border-2 border-stamp px-3 py-1.5 text-sm font-extrabold tracking-[0.08em] text-stamp uppercase;
+        @apply inline-block border-2 border-stamp px-3 py-1 text-sm font-bold tracking-[0.12em] text-stamp uppercase;
     }
 
-    /* Year set like a date stamp on an archive card. */
+    /* Year set like a date on an atlas sheet. */
     .year-stamp {
-        @apply font-serif font-semibold tabular-nums tracking-tight;
-        }
+        @apply font-serif font-semibold tabular-nums;
+    }
+
+    /* An alternating ink/paper bar, like the scale bar of a map. */
+    .scale-bar {
+        @apply border border-ink;
+        background: repeating-linear-gradient(90deg, var(--color-ink) 0 50%, var(--color-paper) 50% 100%) 0 0 / var(--scale-step, 40px) 100%;
+    }
 }
 
 /* MapLibre controls in the site palette. */
 .maplibregl-map {
     font-family: var(--font-sans);
-    background: var(--color-hay-pale);
+    background: var(--color-paper);
 }
 
 .maplibregl-ctrl-group {
     overflow: hidden;
-    border: 1px solid var(--color-rule);
-    border-radius: 12px !important;
-    box-shadow: 0 1px 2px rgb(59 42 30 / 0.12) !important;
-    background: var(--color-paper-raised) !important;
+    border: 1px solid var(--color-ink);
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    background: var(--color-paper) !important;
 }
 
 .maplibregl-ctrl-group button {
     width: 34px !important;
     height: 34px !important;
-    background-color: var(--color-paper-raised);
+    background-color: var(--color-paper);
 }
 
 .maplibregl-ctrl-group button + button {
-    border-top-color: var(--color-rule) !important;
+    border-top-color: var(--color-ink) !important;
 }
 
 .maplibregl-ctrl-group button:not(:disabled):hover {
-    background-color: var(--color-paper) !important;
+    background-color: var(--color-hatch) !important;
 }
 
 /* OpenStreetMap attribution is required: restyled, never hidden. */
 .maplibregl-ctrl-attrib {
-    border-top-left-radius: 8px;
-    background: rgb(255 250 241 / 0.85) !important;
+    background: rgb(241 238 227 / 0.85) !important;
     color: var(--color-ink-soft);
     font-size: 11px;
 }
 
 .maplibregl-ctrl-attrib a {
-    color: var(--color-umber) !important;
+    color: var(--color-ink-soft) !important;
+}
+
+.maplibregl-ctrl-attrib a:hover {
+    color: var(--color-stamp) !important;
+}
+
+/*
+ * Full-screen maps (game, result): controls stay clear of the panels and inside the sheet frame.
+ * Zoom buttons sit at the right edge on desktop; phones pinch. Attribution is moved, never hidden.
+ */
+.map-fullscreen .maplibregl-ctrl-top-left {
+    top: 50%;
+    right: 34px;
+    left: auto;
+    translate: 0 -50%;
+}
+
+.map-fullscreen .maplibregl-ctrl-bottom-right {
+    right: 20px;
+    bottom: 20px;
+}
+
+@media (max-width: 1023.98px) {
+    .map-fullscreen .maplibregl-ctrl-top-left {
+        display: none;
+    }
+
+    .map-fullscreen .maplibregl-ctrl-bottom-right {
+        top: calc(env(safe-area-inset-top) + 52px);
+        right: 8px;
+        bottom: auto;
+    }
 }
 
 /* Map markers drawn with CSS so they never depend on image URLs. */
 .marker-guess,
-.marker-correct {
+.marker-correct,
+.marker-numbered {
+    box-sizing: border-box;
     border-radius: 9999px;
-    box-shadow: 0 0 0 2px #fff, 0 1px 4px rgb(0 0 0 / 0.35);
+    border: 3px solid #fff;
+    animation: marker-in 180ms ease-out;
 }
 
 .marker-guess {
-    width: 20px;
-    height: 20px;
-    background: var(--color-hay);
-    border: 3px solid var(--color-ink);
+    width: 24px;
+    height: 24px;
+    background: var(--color-guess);
+    box-shadow: 0 0 0 8px rgb(46 111 106 / 0.22), 0 2px 6px rgb(0 0 0 / 0.35);
     cursor: grab;
 }
 
+.marker-guess:not(.marker-small) {
+    animation: marker-in 180ms ease-out, marker-ring 2s ease-in-out 180ms infinite;
+}
+
 .marker-guess.marker-small {
-    width: 18px;
-    height: 18px;
+    width: 22px;
+    height: 22px;
+    box-shadow: 0 2px 6px rgb(0 0 0 / 0.35);
     cursor: default;
 }
 
 .marker-correct {
-    width: 22px;
-    height: 22px;
+    width: 28px;
+    height: 28px;
     background: var(--color-stamp);
-    border: 3px solid #fff;
+    box-shadow: 0 0 0 10px rgb(200 68 43 / 0.2);
+}
+
+.marker-numbered {
+    display: grid;
+    place-items: center;
+    width: 30px;
+    height: 30px;
+    border-width: 2px;
+    background: var(--color-stamp);
+    color: #fff;
+    font: 700 15px/1 var(--font-sans);
+    box-shadow: 0 2px 6px rgb(0 0 0 / 0.3);
+    /* MapLibre positions markers with `transform`: animate the separate `scale` property. */
+    transition: scale 0.15s ease-out;
+}
+
+.marker-numbered.is-timeout {
+    background: var(--color-muted-pin);
+}
+
+.marker-numbered.is-active {
+    z-index: 1;
+    scale: 1.25;
+    box-shadow: 0 0 0 6px rgb(29 43 42 / 0.25), 0 2px 6px rgb(0 0 0 / 0.3);
+}
+
+/* Captions next to markers. */
+.map-label {
+    padding: 3px 8px;
+    background: var(--color-ink);
+    color: var(--color-paper);
+    font: 600 13px/1.2 var(--font-sans);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    pointer-events: none;
+}
+
+.map-label--stamp {
+    background: var(--color-stamp);
+    color: #fff;
+}
+
+.map-label--distance {
+    padding: 2px 8px;
+    border: 1px solid var(--color-ink);
+    background: var(--color-paper);
+    color: var(--color-ink);
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+}
+
+@keyframes marker-in {
+    from {
+        scale: 0.6;
+    }
+}
+
+@keyframes marker-ring {
+    50% {
+        box-shadow: 0 0 0 12px rgb(46 111 106 / 0.12), 0 2px 6px rgb(0 0 0 / 0.35);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .marker-guess,
+    .marker-correct,
+    .marker-numbered {
+        animation: none !important;
+    }
 }

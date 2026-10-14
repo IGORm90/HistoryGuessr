@@ -12,6 +12,7 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 // MapLibre locates its worker at runtime, which the bundler cannot see; ship it as an asset of our own.
 import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url';
 import { mapConfig } from '@/config/map';
+import { graticule } from '@/components/maps/coordinates';
 
 setWorkerUrl(workerUrl);
 
@@ -67,8 +68,26 @@ export function createMap(container: HTMLElement, options: Partial<MapOptions> =
     });
     map.touchZoomRotate.disableRotation();
     map.keyboard.disableRotation();
-    map.addControl(new NavigationControl({ showCompass: false }), 'top-left');
+    if (options.interactive !== false) {
+        map.addControl(new NavigationControl({ showCompass: false }), 'top-left');
+    }
+    map.on('load', () => addGraticule(map));
     return map;
+}
+
+export const GRATICULE = 'graticule';
+
+/** The coordinate grid of the atlas sheet: over land and water, under the labels (and the HTML markers). */
+export function addGraticule(map: MapLibreMap): void {
+    if (map.getSource(GRATICULE)) {
+        return;
+    }
+    const firstLabel = map.getStyle().layers.find((layer) => layer.type === 'symbol')?.id;
+    map.addSource(GRATICULE, { type: 'geojson', data: graticule() });
+    map.addLayer(
+        { id: GRATICULE, type: 'line', source: GRATICULE, paint: { 'line-color': 'rgba(29,43,42,0.14)', 'line-width': 1 } },
+        firstLabel,
+    );
 }
 
 export function createMarker(options: MarkerOptions = {}): Marker {

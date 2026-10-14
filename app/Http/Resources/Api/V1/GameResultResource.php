@@ -42,6 +42,8 @@ class GameResultResource extends JsonResource
                         'answer' => $question->answer,
                         'image_url' => PublicUrl::for($question->image_medium_path),
                         'location_name' => $question->location_name,
+                        'latitude' => $question->latitude,
+                        'longitude' => $question->longitude,
                         'year' => $question->answer_year,
                     ],
                     'timed_out' => $answer !== null && $answer->timed_out,

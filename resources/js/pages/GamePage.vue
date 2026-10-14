@@ -1,30 +1,28 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { storeToRefs } from 'pinia';
 import { useGameStore } from '@/stores/game';
-import AppHeader from '@/components/ui/AppHeader.vue';
+import { DESKTOP_QUERY, useMediaQuery } from '@/composables/useMediaQuery';
 import ErrorPanel from '@/components/ui/ErrorPanel.vue';
-import QuestionImage from '@/components/game/QuestionImage.vue';
-import QuestionPrompt from '@/components/game/QuestionPrompt.vue';
+import GameCartouche from '@/components/game/GameCartouche.vue';
+import PinnedPhoto from '@/components/game/PinnedPhoto.vue';
+import PhotoLightbox from '@/components/game/PhotoLightbox.vue';
+import MapLegend from '@/components/game/MapLegend.vue';
 import YearInput from '@/components/game/YearInput.vue';
 import ScoreBreakdown from '@/components/game/ScoreBreakdown.vue';
-import RoundProgress from '@/components/game/RoundProgress.vue';
-import RoundTimer from '@/components/game/RoundTimer.vue';
-import GuessMap from '@/components/maps/GuessMap.vue';
-import AnswerMap from '@/components/maps/AnswerMap.vue';
-import ExpandableMap from '@/components/maps/ExpandableMap.vue';
+import GameMap, { type MapReveal } from '@/components/maps/GameMap.vue';
 import NotFoundPage from '@/pages/NotFoundPage.vue';
-import { formatCoordinates } from '@/utils/format';
 
 const props = defineProps<{ gameId: string }>();
 
 const router = useRouter();
 const store = useGameStore();
 const { game, guess, year, phase, canSubmit, submitting, advancing, error, remainingMs, timeUp, notice } = storeToRefs(store);
+const desktop = useMediaQuery(DESKTOP_QUERY);
+const wide = useMediaQuery('(min-width: 1280px)');
 
-const mapExpanded = ref(false);
-const answerMapExpanded = ref(false);
+const photoExpanded = ref(false);
 const loading = ref(false);
 const notFound = computed(() => error.value?.status === 404);
 const formLocked = computed(() => submitting.value || timeUp.value);
@@ -37,6 +35,27 @@ const submitLabel = computed(() => {
 });
 
 const isLastQuestion = computed(() => game.value !== null && game.value.position >= game.value.question_count);
+const nextLabel = computed(() => (advancing.value ? 'Загружаем…' : isLastQuestion.value ? 'Посмотреть итог' : 'Следующий лист →'));
+const revealed = computed(() => (phase.value === 'revealed' && game.value?.answer ? game.value.answer : null));
+
+const mapReveal = computed<MapReveal | null>(() => {
+    const answer = revealed.value;
+    return answer
+        ? {
+              guess: answer.guess,
+              correct: answer.correct,
+              distanceMeters: answer.distance_meters,
+              locationName: answer.correct.location_name,
+          }
+        : null;
+});
+
+// Keep the answer clear of the photo and the reveal panel (desktop) or the bottom sheet (phones).
+const mapPadding = computed(() =>
+    desktop.value
+        ? { top: 90, bottom: 120, left: 300, right: wide.value ? 540 : 460 }
+        : { top: 200, bottom: Math.round(window.innerHeight * 0.6) + 20, left: 40, right: 40 },
+);
 
 async function load(): Promise<void> {
     loading.value = true;
@@ -67,23 +86,18 @@ onBeforeUnmount(() => {
 });
 
 watch(phase, async (current) => {
+    photoExpanded.value = false;
     if (current === 'completed') {
         await router.replace({ name: 'result', params: { gameId: props.gameId } });
     }
 });
 
 async function submit(): Promise<void> {
-    mapExpanded.value = false;
     await store.submit();
 }
 
 async function next(): Promise<void> {
-    answerMapExpanded.value = false;
     await store.advance();
-    if (phase.value === 'guessing') {
-        await nextTick();
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
 }
 
 function retry(): void {
@@ -97,47 +111,64 @@ function retry(): void {
 <template>
     <NotFoundPage v-if="notFound" title="Игра не найдена" text="Ссылка устарела или игра началась в другом браузере." />
 
-    <div v-else class="min-h-screen">
-        <AppHeader>
-            <template v-if="game" #center>
-                <RoundTimer
-                    :remaining-ms="phase === 'guessing' ? remainingMs : null"
-                    :spent-ms="game.answer?.duration_ms ?? null"
-                    :timed-out="timeUp || (game.answer?.timed_out ?? false)"
-                />
-            </template>
-            <RoundProgress
-                v-if="game"
+    <div v-else class="relative h-dvh overflow-hidden bg-paper text-ink">
+        <GameMap
+            v-model="guess"
+            class="map-fullscreen absolute! inset-0"
+            :disabled="formLocked || phase !== 'guessing'"
+            :reveal="mapReveal"
+            :padding="mapPadding"
+        />
+        <div class="sheet-frame z-[5] hidden lg:block" />
+
+        <!-- Above the map controls (MapLibre gives them z-index 2). -->
+        <div class="pointer-events-none absolute inset-0 z-10 *:pointer-events-auto">
+            <!-- On desktop the reveal panel takes over the cartouche's corner and repeats its data. -->
+            <GameCartouche
+                v-if="game && (!desktop || !revealed)"
+                class="absolute top-[calc(env(safe-area-inset-top)+8px)] right-3 left-3 lg:top-10 lg:right-10 lg:left-auto"
+                :compact="!desktop"
+                :quiz-title="game.quiz.title"
                 :position="game.position"
                 :total="game.question_count"
                 :score="game.total_score"
+                :remaining-ms="phase === 'guessing' ? remainingMs : null"
+                :spent-ms="game.answer?.duration_ms ?? null"
+                :timed-out="timeUp || (game.answer?.timed_out ?? false)"
             />
-        </AppHeader>
 
-        <main class="mx-auto max-w-[1376px] px-4 pt-7 pb-12 sm:px-8">
-            <div v-if="!game" class="py-4">
-                <ErrorPanel
-                    v-if="error"
-                    :error="error"
-                    :retrying="loading"
-                    @retry="load"
-                />
-                <div v-else class="grid gap-7 lg:grid-cols-[minmax(0,1fr)_400px]" aria-busy="true">
-                    <div class="aspect-[3/2] animate-pulse rounded-[20px] bg-hay-pale" />
-                    <div class="h-96 animate-pulse rounded-[20px] bg-hay-pale/60" />
+            <!-- Loading and load errors: the map is already there, the sheet is not. -->
+            <template v-if="!game">
+                <div v-if="error" class="sheet absolute top-1/2 left-1/2 w-[min(440px,calc(100%-32px))] -translate-1/2 p-5">
+                    <ErrorPanel :error="error" :retrying="loading" @retry="load" />
                 </div>
-            </div>
+                <div
+                    v-else
+                    class="polaroid absolute top-[calc(env(safe-area-inset-top)+60px)] left-[18px] w-[130px] -rotate-2 lg:top-11 lg:left-11 lg:w-[380px]"
+                    aria-busy="true"
+                >
+                    <div class="skeleton h-[150px] lg:h-[440px]" />
+                </div>
+            </template>
 
             <template v-else-if="game.question">
+                <PinnedPhoto
+                    :key="game.question.id"
+                    class="absolute top-[calc(env(safe-area-inset-top)+60px)] left-[18px] lg:top-11 lg:left-11"
+                    :image="game.question.image"
+                    :compact="revealed !== null"
+                    @open="photoExpanded = true"
+                />
+
                 <div
                     v-if="notice === 'previous_round_expired'"
-                    class="card mb-4 flex items-center gap-3 border-l-4 border-l-stamp py-3"
+                    class="sheet absolute top-[calc(env(safe-area-inset-top)+60px)] right-3 left-[160px] flex items-center gap-3 px-4 py-2.5 lg:top-10 lg:right-auto lg:left-1/2 lg:-translate-x-1/2"
                     role="status"
                 >
                     <p class="flex-1 font-semibold text-stamp">Время на прошлый вопрос вышло — 0 очков</p>
                     <button
                         type="button"
-                        class="grid size-9 shrink-0 place-items-center rounded-full text-ink-soft hover:bg-paper hover:text-ink"
+                        class="grid size-8 shrink-0 place-items-center text-ink-soft hover:text-stamp"
                         aria-label="Закрыть"
                         @click="store.dismissNotice()"
                     >
@@ -156,51 +187,62 @@ function retry(): void {
                     </button>
                 </div>
 
-                <div class="mb-4 space-y-1">
-                    <p class="text-[0.8125rem] font-bold tracking-[0.12em] text-umber uppercase">Подборка «{{ game.quiz.title }}»</p>
-                    <QuestionPrompt />
-                </div>
-
-                <div class="grid gap-7 lg:grid-cols-[minmax(0,1fr)_400px]">
-                    <div>
-                        <QuestionImage :key="game.question.id" :image="game.question.image" fill />
-                    </div>
-
-                    <aside>
-                        <form v-if="phase === 'guessing'" class="space-y-4" @submit.prevent="submit">
-                            <section class="card" aria-labelledby="place-heading">
-                                <div class="mb-3 flex items-baseline justify-between gap-3">
-                                    <h2 id="place-heading" class="text-base font-extrabold">Место</h2>
-                                    <span class="text-xs text-ink-soft tabular-nums">{{ guess ? formatCoordinates(guess) : 'не отмечено' }}</span>
-                                </div>
-                                <ExpandableMap v-model:expanded="mapExpanded">
-                                    <GuessMap v-model="guess" :disabled="formLocked" />
-                                </ExpandableMap>
-                            </section>
-
-                            <section class="card">
-                                <YearInput v-model="year" :disabled="formLocked" />
-                            </section>
-
+                <!-- Guessing: the year panel and the legend with the answer button. -->
+                <form
+                    v-if="phase === 'guessing'"
+                    class="pointer-events-none! absolute right-3 bottom-[calc(env(safe-area-inset-bottom)+14px)] left-3 grid items-end gap-5 lg:right-11 lg:bottom-10 lg:left-11 lg:grid-cols-[minmax(0,1fr)_300px]"
+                    @submit.prevent="submit"
+                >
+                    <template v-if="desktop">
+                        <section class="panel pointer-events-auto px-[22px] pt-3.5 pb-3">
+                            <YearInput v-model="year" layout="inline" :disabled="formLocked" />
+                        </section>
+                        <MapLegend class="pointer-events-auto">
                             <ErrorPanel
                                 v-if="error"
                                 :error="error"
                                 :retrying="submitting || loading"
                                 @retry="retry"
                             />
-
-                            <button type="submit" class="btn-primary min-h-14 w-full text-[1.0625rem]" :disabled="!canSubmit">
+                            <button type="submit" class="btn-primary w-full px-3 text-base tracking-[0.1em] whitespace-nowrap" :disabled="!canSubmit">
                                 {{ submitLabel }}
                             </button>
-                        </form>
+                        </MapLegend>
+                    </template>
+                    <section v-else class="pointer-events-auto flex flex-col gap-2.5 border border-ink bg-paper p-3.5">
+                        <YearInput v-model="year" :disabled="formLocked" />
+                        <ErrorPanel
+                            v-if="error"
+                            :error="error"
+                            :retrying="submitting || loading"
+                            @retry="retry"
+                        />
+                        <button type="submit" class="btn-primary min-h-[52px] w-full px-3 text-base tracking-[0.1em] whitespace-nowrap" :disabled="!canSubmit">
+                            {{ submitLabel }}
+                        </button>
+                    </section>
+                </form>
 
-                        <div v-else-if="phase === 'revealed' && game.answer" class="space-y-4">
-                            <section class="card space-y-4">
-                                <ExpandableMap v-model:expanded="answerMapExpanded">
-                                    <AnswerMap :guess="game.answer.guess" :correct="game.answer.correct" />
-                                </ExpandableMap>
-                                <ScoreBreakdown :answer="game.answer" />
-                            </section>
+                <!-- Revealed: the answer panel on the right (desktop) or a bottom sheet (phones). -->
+                <Transition
+                    appear
+                    enter-active-class="transition duration-[250ms] ease-out"
+                    enter-from-class="translate-x-6 opacity-0 max-lg:translate-x-0 max-lg:translate-y-6"
+                >
+                    <aside
+                        v-if="revealed"
+                        :key="revealed.question_id"
+                        class="sheet absolute right-3 bottom-[calc(env(safe-area-inset-bottom)+14px)] left-3 flex max-h-[60dvh] flex-col lg:top-10 lg:right-10 lg:bottom-10 lg:left-auto lg:max-h-none lg:w-[380px] xl:w-[460px]"
+                    >
+                        <div class="flex min-h-0 flex-1 flex-col overflow-y-auto px-5 pt-5 lg:px-7 lg:pt-[26px]">
+                            <ScoreBreakdown
+                                class="flex-1"
+                                :answer="revealed"
+                                :position="game.position"
+                                :total="game.question_count"
+                            />
+                        </div>
+                        <div class="flex flex-col gap-3 px-5 pt-4 pb-5 lg:px-7 lg:pb-[26px]">
                             <ErrorPanel
                                 v-if="error"
                                 :error="error"
@@ -209,16 +251,18 @@ function retry(): void {
                             />
                             <button
                                 type="button"
-                                class="btn-primary min-h-14 w-full text-[1.0625rem]"
+                                class="btn-primary min-h-14 w-full"
                                 :disabled="advancing"
                                 @click="next"
                             >
-                                {{ advancing ? 'Загружаем…' : isLastQuestion ? 'Посмотреть итог' : 'Следующий вопрос' }}
+                                {{ nextLabel }}
                             </button>
                         </div>
                     </aside>
-                </div>
+                </Transition>
             </template>
-        </main>
+        </div>
+
+        <PhotoLightbox v-if="game?.question" v-model:open="photoExpanded" :image="game.question.image" />
     </div>
 </template>

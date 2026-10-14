@@ -3,13 +3,15 @@ import { computed, onMounted, ref } from 'vue';
 import { RouterLink, useRouter } from 'vue-router';
 import { gamesApi } from '@/api/games';
 import { useAsyncState } from '@/composables/useAsyncState';
+import { DESKTOP_QUERY, useMediaQuery } from '@/composables/useMediaQuery';
 import { useGameStore } from '@/stores/game';
-import AppHeader from '@/components/ui/AppHeader.vue';
 import ErrorPanel from '@/components/ui/ErrorPanel.vue';
+import ResultMap, { type ResultPin } from '@/components/maps/ResultMap.vue';
 import NotFoundPage from '@/pages/NotFoundPage.vue';
 import type { ApiError } from '@/api/client';
+import type { GameRound } from '@/types/game';
 import { formatDistance, formatNumber, pluralYears } from '@/utils/format';
-import YearStamp from '@/components/game/YearStamp.vue';
+import { formatYear } from '@/utils/year';
 
 const props = defineProps<{ gameId: string }>();
 
@@ -18,11 +20,41 @@ const store = useGameStore();
 const result = useAsyncState(gamesApi.result);
 const restarting = ref(false);
 const restartError = ref<ApiError | null>(null);
+const highlighted = ref<number | null>(null);
+const desktop = useMediaQuery(DESKTOP_QUERY);
 
 const share = computed(() => {
     const data = result.data.value;
     return data ? Math.round((data.total_score / Math.max(1, data.max_score)) * 100) : 0;
 });
+
+const pins = computed<ResultPin[]>(() =>
+    (result.data.value?.rounds ?? []).flatMap((round) =>
+        round.question.latitude === null || round.question.longitude === null
+            ? []
+            : [
+                  {
+                      latitude: round.question.latitude,
+                      longitude: round.question.longitude,
+                      position: round.position,
+                      // Grey: the round scored nothing because no point was picked in time.
+                      timedOut: round.guess === null,
+                      title: round.question.answer,
+                  },
+              ],
+    ),
+);
+
+const mapPadding = computed(() => (desktop.value ? { left: 400, right: 520 } : { top: 40, bottom: 40 }));
+
+function roundSummary(round: GameRound): string {
+    const year = round.question.year !== null ? formatYear(round.question.year) : null;
+    if (round.guess === null || round.distance_meters === null) {
+        return [year, 'время вышло'].filter(Boolean).join(' · ');
+    }
+    const verdict = round.year_difference === 0 ? 'год угадан' : pluralYears(round.year_difference ?? 0);
+    return [year, `${formatDistance(round.distance_meters)}, ${verdict}`].filter(Boolean).join(' · ');
+}
 
 onMounted(async () => {
     await result.run(props.gameId);
@@ -50,98 +82,84 @@ async function playAgain(): Promise<void> {
 <template>
     <NotFoundPage v-if="result.error.value?.status === 404" title="Игра не найдена" text="Ссылка устарела или игра началась в другом браузере." />
 
-    <div v-else class="min-h-screen">
-        <AppHeader />
-        <main class="mx-auto max-w-[1376px] px-4 pt-8 pb-16 sm:px-8">
+    <div v-else class="relative min-h-dvh bg-paper text-ink lg:h-dvh lg:overflow-hidden">
+        <div class="relative h-[42dvh] lg:absolute lg:inset-0 lg:h-auto">
+            <ResultMap
+                class="absolute! inset-0"
+                :pins="pins"
+                :highlighted="highlighted"
+                :padding="mapPadding"
+            />
+            <div class="sheet-frame z-[5] hidden lg:block" />
+        </div>
+
+        <div class="relative z-10 flex flex-col gap-6 p-4 lg:pointer-events-none lg:absolute lg:inset-0 lg:block lg:p-0 lg:*:pointer-events-auto">
             <ErrorPanel
                 v-if="result.error.value && result.error.value.code !== 'game_not_completed'"
+                class="lg:absolute lg:top-11 lg:left-11 lg:w-[400px]"
                 :error="result.error.value"
                 :retrying="result.loading.value"
                 @retry="result.retry()"
             />
 
-            <div v-else-if="!result.data.value" class="grid gap-7 lg:grid-cols-[400px_minmax(0,1fr)]" aria-busy="true">
-                <div class="h-80 animate-pulse rounded-[20px] bg-hay-pale/70" />
-                <div class="h-96 animate-pulse rounded-[20px] bg-hay-pale/50" />
-            </div>
+            <div v-else-if="!result.data.value" class="sheet skeleton h-56 lg:absolute lg:top-11 lg:left-11 lg:w-[340px]" aria-busy="true" />
 
             <template v-else>
-                <div class="mb-6 space-y-1">
-                    <p class="text-[0.8125rem] font-bold tracking-[0.12em] text-umber uppercase">Подборка «{{ result.data.value.quiz.title }}»</p>
-                    <h1 class="font-serif text-3xl font-bold sm:text-[2.125rem]">Итоги игры</h1>
-                </div>
+                <section class="sheet px-[26px] py-5 lg:absolute lg:top-11 lg:left-11" aria-live="polite">
+                    <h1 class="eyebrow">
+                        <RouterLink :to="{ name: 'home' }" class="hover:text-stamp">Итоги</RouterLink> · {{ result.data.value.quiz.title }}
+                    </h1>
+                    <p class="year-stamp mt-1.5 text-[64px] leading-none sm:text-[80px]">{{ formatNumber(result.data.value.total_score) }}</p>
+                    <p class="mt-1 text-[17px] text-ink-soft">из {{ formatNumber(result.data.value.max_score) }} · {{ share }}%</p>
+                    <div
+                        class="scale-bar relative mt-3 h-2.5 w-full max-w-[280px] lg:w-[280px]"
+                        role="progressbar"
+                        :aria-valuenow="share"
+                        aria-valuemin="0"
+                        aria-valuemax="100"
+                        :aria-label="`${share}% от максимума`"
+                    >
+                        <div class="absolute inset-y-0 right-0 bg-paper" :style="{ left: `${share}%` }" />
+                    </div>
+                </section>
 
-                <div class="grid gap-7 lg:grid-cols-[400px_minmax(0,1fr)] lg:items-start">
-                    <section class="card p-6 lg:sticky lg:top-4" aria-live="polite">
-                        <p class="text-sm font-semibold text-ink-soft">Ваш счёт</p>
-                        <p class="year-stamp mt-1 text-6xl leading-none sm:text-7xl">{{ formatNumber(result.data.value.total_score) }}</p>
-                        <p class="mt-2 text-ink-soft">из {{ formatNumber(result.data.value.max_score) }} возможных</p>
-                        <div
-                            class="mt-5 h-3 overflow-hidden rounded-full bg-hay-pale"
-                            role="progressbar"
-                            :aria-valuenow="share"
-                            aria-valuemin="0"
-                            aria-valuemax="100"
-                            :aria-label="`${share}% от максимума`"
+                <aside class="sheet flex flex-col px-6 py-[22px] lg:absolute lg:top-10 lg:right-10 lg:bottom-10 lg:w-[440px]" aria-labelledby="rounds-heading">
+                    <h2 id="rounds-heading" class="border-b-2 border-ink pb-2.5 text-[13px] font-semibold tracking-[0.14em] uppercase">Указатель точек</h2>
+                    <ol class="min-h-0 flex-1 overflow-y-auto">
+                        <li
+                            v-for="round in result.data.value.rounds"
+                            :key="round.position"
+                            class="grid grid-cols-[30px_minmax(0,1fr)_auto] items-center gap-3 border-b border-rule py-3"
+                            @mouseenter="highlighted = round.position"
+                            @mouseleave="highlighted = null"
                         >
-                            <div class="h-full rounded-full bg-hay" :style="{ width: `${share}%` }" />
-                        </div>
-                        <p class="mt-2 text-sm font-semibold">{{ share }}% от максимума</p>
-                        <div class="mt-6 grid gap-3">
-                            <button
-                                type="button"
-                                class="btn-primary min-h-14 text-[1.0625rem]"
-                                :disabled="restarting"
-                                @click="playAgain"
-                            >
-                                {{ restarting ? 'Запускаем…' : 'Сыграть ещё раз' }}
-                            </button>
-                            <RouterLink :to="{ name: 'home' }" class="btn-secondary min-h-14">Другие подборки</RouterLink>
-                        </div>
-                        <ErrorPanel
-                            v-if="restartError"
-                            class="mt-4"
-                            :error="restartError"
-                            @retry="playAgain"
-                        />
-                    </section>
-
-                    <section class="card p-2 sm:p-3" aria-labelledby="rounds-heading">
-                        <h2 id="rounds-heading" class="px-3 pt-2 pb-1 text-base font-extrabold">Раунды</h2>
-                        <ol class="divide-y divide-rule">
-                            <li v-for="round in result.data.value.rounds" :key="round.position" class="flex items-center gap-4 p-3">
-                                <span class="block h-20 w-28 shrink-0 overflow-hidden rounded-xl bg-photo">
-                                    <img
-                                        v-if="round.question.image_url"
-                                        :src="round.question.image_url"
-                                        alt=""
-                                        class="h-full w-full object-cover"
-                                        loading="lazy"
-                                    >
-                                </span>
-                                <div class="min-w-0 flex-1">
-                                    <p class="text-xs font-semibold text-ink-soft">Раунд {{ round.position }}</p>
-                                    <p class="truncate font-bold">{{ round.question.answer }}</p>
-                                    <p class="truncate text-sm text-ink-soft">{{ round.question.location_name }}</p>
-                                    <p v-if="round.question.year !== null" class="text-2xl leading-tight text-stamp">
-                                        <YearStamp :year="round.question.year" />
-                                    </p>
-                                    <p v-if="round.timed_out" class="time-up-stamp mt-1 text-xs">
-                                        Время вышло
-                                    </p>
-                                    <p v-else-if="round.distance_meters !== null" class="text-sm text-ink-soft">
-                                        {{ formatDistance(round.distance_meters) }} от цели,
-                                        {{ round.year_difference === 0 ? 'год угадан' : `ошибка ${pluralYears(round.year_difference ?? 0)}` }}
-                                    </p>
-                                </div>
-                                <p class="shrink-0 rounded-full bg-paper px-3 py-1.5 text-right font-extrabold tabular-nums">
-                                    {{ round.score.total !== null ? `+${formatNumber(round.score.total)}` : '—' }}
-                                </p>
-                            </li>
-                        </ol>
-                    </section>
-                </div>
+                            <span
+                                class="grid size-[26px] place-items-center rounded-full text-[13px] font-bold text-white"
+                                :class="round.guess ? 'bg-stamp' : 'bg-muted-pin'"
+                            >{{ round.position }}</span>
+                            <span class="min-w-0">
+                                <b class="block font-serif text-lg leading-[1.2] font-semibold">{{ round.question.answer }}</b>
+                                <span class="text-sm text-ink-soft">{{ roundSummary(round) }}</span>
+                            </span>
+                            <span class="text-xl font-semibold tabular-nums">
+                                {{ round.guess ? `+${formatNumber(round.score.total ?? 0)}` : '—' }}
+                            </span>
+                        </li>
+                    </ol>
+                    <div class="mt-5 flex flex-col gap-2.5">
+                        <ErrorPanel v-if="restartError" :error="restartError" @retry="playAgain" />
+                        <button
+                            type="button"
+                            class="btn-primary"
+                            :disabled="restarting"
+                            @click="playAgain"
+                        >
+                            {{ restarting ? 'Запускаем…' : 'Сыграть ещё раз' }}
+                        </button>
+                        <RouterLink :to="{ name: 'home' }" class="btn-secondary">Другие подборки</RouterLink>
+                    </div>
+                </aside>
             </template>
-        </main>
+        </div>
     </div>
 </template>

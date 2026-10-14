@@ -1,66 +1,65 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { RouterLink } from 'vue-router';
-import AppHeader from '@/components/ui/AppHeader.vue';
 import QuizList from '@/components/quiz/QuizList.vue';
+import WorldBackdrop from '@/components/maps/WorldBackdrop.vue';
 import { lastGame } from '@/utils/lastGame';
+import { DESKTOP_QUERY, useMediaQuery } from '@/composables/useMediaQuery';
 
 const unfinished = ref(lastGame());
+// On desktop the pins stay to the right of the hero card.
+const desktop = useMediaQuery(DESKTOP_QUERY);
 
-const steps = [
-    { title: 'Рассмотрите фотографию', text: 'Одежда, вывески, транспорт и дома подскажут эпоху и место.' },
-    { title: 'Отметьте место на карте', text: 'Чем ближе отметка к месту съёмки, тем больше очков.' },
-    { title: 'Назовите год', text: 'Очки за год считаются отдельно: можно угадать одно и промахнуться с другим.' },
-];
+const steps = ['Рассмотрите фотографию', 'Отметьте место на карте', 'Назовите год'];
 </script>
 
 <template>
-    <div class="min-h-screen">
-        <AppHeader />
-        <main class="mx-auto max-w-[1376px] px-4 pb-16 sm:px-8">
-            <section class="grid gap-8 py-10 sm:py-14 lg:grid-cols-[minmax(0,1fr)_440px] lg:items-center lg:gap-14">
-                <div class="space-y-5">
-                    <p class="text-[0.8125rem] font-bold tracking-[0.12em] text-umber uppercase">Историческая викторина</p>
-                    <h1 class="font-serif text-4xl leading-[1.1] font-bold sm:text-6xl">
-                        Где и когда<br>сделан этот снимок?
+    <div class="min-h-screen bg-paper text-ink">
+        <section class="relative overflow-hidden lg:min-h-[720px]">
+            <WorldBackdrop class="absolute! inset-0" :padding="desktop ? { left: 660 } : {}" />
+            <div class="sheet-frame z-[5]" />
+
+            <header class="absolute z-10 top-7 right-7 left-7 flex items-center justify-between gap-4 lg:top-9 lg:right-10 lg:left-10">
+                <RouterLink :to="{ name: 'home' }" class="bg-paper px-3 py-1 font-serif text-[22px] font-semibold sm:text-[26px]">HistoryGuessr</RouterLink>
+                <RouterLink :to="{ name: 'quizzes' }" class="bg-paper px-3 py-1.5 text-[17px] font-semibold tracking-[0.12em] uppercase hover:text-stamp">
+                    Подборки
+                </RouterLink>
+            </header>
+
+            <div class="relative z-10 px-7 pt-28 pb-12 lg:px-14 lg:pt-[130px] lg:pb-14">
+                <div class="sheet flex flex-col gap-5 p-6 sm:p-10 lg:w-[560px] lg:px-10 lg:py-9">
+                    <p class="text-[15px] font-semibold tracking-[0.2em] text-stamp uppercase">Историческая викторина</p>
+                    <h1 class="font-serif text-[44px] leading-none font-semibold tracking-[-0.01em] sm:text-[64px]">
+                        Где и когда сделан этот снимок?
                     </h1>
-                    <p class="max-w-xl text-lg leading-relaxed text-ink-soft">
+                    <p class="font-serif text-lg leading-[1.55] text-ink-soft">
                         Перед вами историческая фотография. Отметьте на карте, где её сделали, и назовите год.
                         Чем ближе к правде, тем больше очков.
                     </p>
-                    <div class="flex flex-wrap gap-3 pt-1">
-                        <a href="#quizzes" class="btn-primary min-h-14 px-7 text-[1.0625rem]">Выбрать подборку</a>
-                        <RouterLink
-                            v-if="unfinished"
-                            :to="{ name: 'game', params: { gameId: unfinished } }"
-                            class="btn-secondary min-h-14 px-7"
-                        >
-                            Продолжить игру
+                    <div class="flex flex-wrap gap-2.5">
+                        <a href="#quizzes" class="btn-primary max-sm:w-full">Выбрать подборку</a>
+                        <RouterLink v-if="unfinished" :to="{ name: 'game', params: { gameId: unfinished } }" class="btn-secondary max-sm:w-full">
+                            Продолжить
                         </RouterLink>
                     </div>
-                </div>
-
-                <section class="card p-6" aria-labelledby="how-heading">
-                    <h2 id="how-heading" class="font-serif text-2xl font-bold">Как играть</h2>
-                    <ol class="mt-5 space-y-5">
-                        <li v-for="(step, index) in steps" :key="step.title" class="flex gap-4">
-                            <span class="flex size-9 shrink-0 items-center justify-center rounded-full bg-hay font-extrabold text-ink-deep">{{ index + 1 }}</span>
-                            <span>
-                                <span class="block font-bold">{{ step.title }}</span>
-                                <span class="block text-sm leading-relaxed text-ink-soft">{{ step.text }}</span>
-                            </span>
+                    <ol class="grid grid-cols-3 gap-3 border-t border-ink pt-4" aria-label="Как играть">
+                        <li v-for="(step, index) in steps" :key="step" class="text-[15px] leading-[1.3]">
+                            <span class="block font-serif text-2xl font-semibold text-stamp">{{ index + 1 }}</span>
+                            {{ step }}
                         </li>
                     </ol>
-                </section>
-            </section>
-
-            <section id="quizzes" aria-labelledby="quizzes-heading" class="scroll-mt-6">
-                <div class="mb-5 flex items-end justify-between gap-4">
-                    <h2 id="quizzes-heading" class="font-serif text-3xl font-bold">Подборки</h2>
-                    <RouterLink :to="{ name: 'quizzes' }" class="text-sm font-semibold text-umber hover:underline">Все подборки</RouterLink>
                 </div>
-                <QuizList />
-            </section>
-        </main>
+            </div>
+        </section>
+
+        <section id="quizzes" aria-labelledby="quizzes-heading" class="scroll-mt-6 px-4 pt-10 pb-16 sm:px-14 sm:pt-14 sm:pb-[72px]">
+            <div class="mb-7 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b-2 border-ink pb-2.5">
+                <h2 id="quizzes-heading" class="font-serif text-[32px] font-semibold whitespace-nowrap sm:text-[40px]">Листы атласа</h2>
+                <RouterLink :to="{ name: 'quizzes' }" class="text-[17px] font-semibold tracking-[0.1em] text-stamp uppercase hover:text-ink">
+                    Все подборки →
+                </RouterLink>
+            </div>
+            <QuizList />
+        </section>
     </div>
 </template>

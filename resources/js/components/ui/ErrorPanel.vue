@@ -6,12 +6,12 @@ defineEmits<{ retry: [] }>();
 </script>
 
 <template>
-    <div role="alert" class="rounded-xl border border-stamp/40 bg-stamp/5 px-4 py-3 text-sm">
-        <p class="text-ink">{{ error.status === 0 ? 'Нет связи с сервером. Проверьте интернет.' : error.message }}</p>
+    <div role="alert" class="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border border-stamp bg-paper px-4 py-3">
+        <p class="font-semibold text-stamp">{{ error.status === 0 ? 'Нет связи с сервером. Проверьте интернет.' : error.message }}</p>
         <button
             v-if="error.isRetryable"
             type="button"
-            class="mt-2 font-semibold text-umber underline disabled:opacity-60"
+            class="btn-secondary min-h-9 px-3 text-sm"
             :disabled="retrying"
             @click="$emit('retry')"
         >

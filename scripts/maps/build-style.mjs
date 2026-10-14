@@ -18,8 +18,8 @@ export const ATTRIBUTION = '© <a href="https://www.openstreetmap.org/copyright"
 export function buildStyle() {
     const style = osm({
         theme: 'natural',
-        // Shift the palette towards the site's beige/brown (resources/css/app.css).
-        recolor: { tint: { color: '#c99a3c', amount: 0.2 }, saturate: -0.15 },
+        // Shift the palette towards the «Atlas» sheet (resources/css/app.css): pale land, muted water.
+        recolor: { tint: { color: '#6f8f7a', amount: 0.25 }, saturate: -0.3 },
         urls: {
             base: PLACEHOLDER,
             osm: '/maps/tiles/osm/tiles.json',
@@ -38,6 +38,9 @@ export function buildStyle() {
     for (const source of Object.values(result.sources)) {
         source.attribution = ATTRIBUTION;
     }
+    // The paper of the atlas sheet, not tinted: --color-paper.
+    const background = result.layers.find((layer) => layer.id === 'background');
+    background.paint = { ...background.paint, 'background-color': '#f1eee3' };
     return result;
 }
 

@@ -126,7 +126,10 @@ async function playAgain(): Promise<void> {
                                     <p v-if="round.question.year !== null" class="text-2xl leading-tight text-stamp">
                                         <YearStamp :year="round.question.year" />
                                     </p>
-                                    <p v-if="round.distance_meters !== null" class="text-sm text-ink-soft">
+                                    <p v-if="round.timed_out" class="time-up-stamp mt-1 text-xs">
+                                        Время вышло
+                                    </p>
+                                    <p v-else-if="round.distance_meters !== null" class="text-sm text-ink-soft">
                                         {{ formatDistance(round.distance_meters) }} от цели,
                                         {{ round.year_difference === 0 ? 'год угадан' : `ошибка ${pluralYears(round.year_difference ?? 0)}` }}
                                     </p>

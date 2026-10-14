@@ -44,6 +44,12 @@ class GameResultResource extends JsonResource
                         'location_name' => $question->location_name,
                         'year' => $question->answer_year,
                     ],
+                    'timed_out' => $answer !== null && $answer->timed_out,
+                    'guess' => $answer?->guessed_latitude === null ? null : [
+                        'latitude' => $answer->guessed_latitude,
+                        'longitude' => $answer->guessed_longitude,
+                        'year' => $answer->guessed_year,
+                    ],
                     'distance_meters' => $answer?->distance_meters,
                     'year_difference' => $answer?->year_difference,
                     'score' => [

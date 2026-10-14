@@ -9,11 +9,15 @@ use Illuminate\Support\Facades\DB;
 
 class AdvanceGame
 {
-    public function __construct(private readonly CompleteGame $complete) {}
+    public function __construct(
+        private readonly MoveToNextRound $moveNext,
+        private readonly ExpireRound $expire,
+    ) {}
 
     /**
-     * Moves past the answered question at `$fromPosition`; the last one completes the game.
-     * Idempotent: repeating the call for a position already left (double click, retry) changes nothing.
+     * Moves past the answered (or timed-out) question at `$fromPosition`; the last one completes the game.
+     * The next question's round timer starts here. Idempotent: repeating the call for a position
+     * already left (double click, retry) changes nothing.
      */
     public function handle(GameSession $session, int $fromPosition): GameSession
     {
@@ -21,6 +25,11 @@ class AdvanceGame
             $locked = GameSession::query()->whereKey($session->id)->lockForUpdate()->firstOrFail();
 
             if (! $locked->isInProgress() || $locked->current_position !== $fromPosition) {
+                return $locked;
+            }
+
+            // A round that ran out of time unanswered is skipped here (if no GET did it already).
+            if ($this->expire->expireLocked($locked)) {
                 return $locked;
             }
 
@@ -36,11 +45,7 @@ class AdvanceGame
                 throw GameException::answerRequired();
             }
 
-            if ($locked->isLastPosition()) {
-                $this->complete->handle($locked);
-            } else {
-                $locked->increment('current_position');
-            }
+            $this->moveNext->handle($locked);
 
             return $locked;
         });

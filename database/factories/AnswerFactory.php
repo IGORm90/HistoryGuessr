@@ -34,4 +34,22 @@ class AnswerFactory extends Factory
             'answered_at' => now(),
         ];
     }
+
+    /**
+     * An unanswered round that ran out of time: no guess, zero points.
+     */
+    public function timedOut(): static
+    {
+        return $this->state(fn () => [
+            'timed_out' => true,
+            'guessed_latitude' => null,
+            'guessed_longitude' => null,
+            'guessed_year' => null,
+            'distance_meters' => null,
+            'year_difference' => null,
+            'geo_score' => 0,
+            'year_score' => 0,
+            'total_score' => 0,
+        ]);
+    }
 }

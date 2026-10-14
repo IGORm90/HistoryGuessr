@@ -15,11 +15,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int $game_session_id
  * @property int $question_id
  * @property string $idempotency_key
- * @property float $guessed_latitude
- * @property float $guessed_longitude
- * @property int $guessed_year
- * @property int $distance_meters
- * @property int $year_difference
+ * @property bool $timed_out
+ * @property float|null $guessed_latitude null for a timed-out round
+ * @property float|null $guessed_longitude
+ * @property int|null $guessed_year
+ * @property int|null $distance_meters
+ * @property int|null $year_difference
  * @property int $geo_score
  * @property int $year_score
  * @property int $total_score
@@ -33,10 +34,15 @@ class Answer extends Model
 
     public $timestamps = false;
 
+    protected $attributes = [
+        'timed_out' => false,
+    ];
+
     protected $fillable = [
         'game_session_id',
         'question_id',
         'idempotency_key',
+        'timed_out',
         'guessed_latitude',
         'guessed_longitude',
         'guessed_year',
@@ -55,6 +61,7 @@ class Answer extends Model
     protected function casts(): array
     {
         return [
+            'timed_out' => 'boolean',
             'guessed_latitude' => 'float',
             'guessed_longitude' => 'float',
             'guessed_year' => 'integer',

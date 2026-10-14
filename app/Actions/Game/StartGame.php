@@ -6,6 +6,7 @@ use App\Enums\GameSessionStatus;
 use App\Exceptions\GameException;
 use App\Models\GameSession;
 use App\Models\Quiz;
+use App\Support\RoundClock;
 use App\Support\WeightedSampler;
 use Illuminate\Support\Facades\DB;
 
@@ -35,6 +36,9 @@ class StartGame
         $questionIds = $this->sampler->sample($weights, $quiz->round_size);
 
         return DB::transaction(function () use ($quiz, $anonymousId, $questionIds): GameSession {
+            $startedAt = now()->toImmutable();
+            $limit = RoundClock::limitSeconds();
+
             $session = GameSession::create([
                 'quiz_id' => $quiz->id,
                 'anonymous_id' => $anonymousId,
@@ -42,14 +46,18 @@ class StartGame
                 'current_position' => 1,
                 'question_count' => count($questionIds),
                 'total_score' => 0,
-                'started_at' => now(),
+                'round_time_limit_seconds' => $limit,
+                'started_at' => $startedAt,
             ]);
 
+            // The first question is shown right away, so its round starts with the game.
             DB::table('game_session_questions')->insert(array_map(
                 fn (int $questionId, int $index) => [
                     'game_session_id' => $session->id,
                     'question_id' => $questionId,
                     'position' => $index + 1,
+                    'started_at' => $index === 0 ? RoundClock::toDatabase($startedAt) : null,
+                    'deadline_at' => $index === 0 ? RoundClock::toDatabase(RoundClock::deadline($startedAt, $limit)) : null,
                 ],
                 $questionIds,
                 array_keys($questionIds),

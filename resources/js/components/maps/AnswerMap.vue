@@ -10,11 +10,12 @@ import {
 } from '@/lib/maplibre';
 import { useMap } from '@/composables/useMap';
 import type { Coordinates } from '@/types/game';
-import type { Feature, LineString } from 'geojson';
-import { shortestLine, type LngLatTuple } from './coordinates';
+import type { Feature, FeatureCollection, LineString } from 'geojson';
+import { shortestLine, toLngLat, type LngLatTuple } from './coordinates';
 import MapError from './MapError.vue';
 
-const props = defineProps<{ guess: Coordinates; correct: Coordinates }>();
+// `guess` is null when the round timed out: only the correct place is shown.
+const props = defineProps<{ guess: Coordinates | null; correct: Coordinates }>();
 
 const LINE_SOURCE = 'answer-line';
 // Region scale, not street scale (MapLibre levels, see config/map.ts).
@@ -22,24 +23,27 @@ const MAX_FIT_ZOOM = 7;
 
 const container = ref<HTMLElement | null>(null);
 const { map, ready, error, retry } = useMap(container, { scrollZoom: false });
-let markers: { map: MapLibreMap; guess: Marker; correct: Marker } | null = null;
+let markers: { map: MapLibreMap; guess: Marker | null; correct: Marker } | null = null;
 
 function line(from: LngLatTuple, to: LngLatTuple): Feature<LineString> {
     return { type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: [from, to] } };
 }
+
+const NO_LINE: FeatureCollection<LineString> = { type: 'FeatureCollection', features: [] };
 
 function draw(): void {
     const instance = map.value;
     if (!instance || !ready.value) {
         return;
     }
-    const [from, to] = shortestLine(props.guess, props.correct);
+    const [from, to] = props.guess ? shortestLine(props.guess, props.correct) : [null, toLngLat(props.correct)];
+    const data = from ? line(from, to) : NO_LINE;
 
     const source = instance.getSource<GeoJSONSource>(LINE_SOURCE);
     if (source) {
-        source.setData(line(from, to));
+        source.setData(data);
     } else {
-        instance.addSource(LINE_SOURCE, { type: 'geojson', data: line(from, to) });
+        instance.addSource(LINE_SOURCE, { type: 'geojson', data });
         instance.addLayer({
             id: LINE_SOURCE,
             type: 'line',
@@ -52,17 +56,22 @@ function draw(): void {
     if (markers?.map !== instance) {
         markers = {
             map: instance,
-            guess: createMarker({ element: markerElement('marker-guess marker-small', 'Ваш ответ') }),
-            correct: createMarker({ element: markerElement('marker-correct', 'Правильный ответ') }),
+            guess: null,
+            correct: createMarker({ element: markerElement('marker-correct', 'Правильный ответ') }).setLngLat(to).addTo(instance),
         };
-        markers.guess.setLngLat(from).addTo(instance);
-        markers.correct.setLngLat(to).addTo(instance);
     } else {
-        markers.guess.setLngLat(from);
         markers.correct.setLngLat(to);
     }
 
-    instance.fitBounds(new LngLatBounds(from, to), { padding: 40, maxZoom: MAX_FIT_ZOOM, animate: false });
+    if (from) {
+        markers.guess ??= createMarker({ element: markerElement('marker-guess marker-small', 'Ваш ответ') }).addTo(instance);
+        markers.guess.setLngLat(from);
+        instance.fitBounds(new LngLatBounds(from, to), { padding: 40, maxZoom: MAX_FIT_ZOOM, animate: false });
+    } else {
+        markers.guess?.remove();
+        markers.guess = null;
+        instance.jumpTo({ center: to, zoom: MAX_FIT_ZOOM });
+    }
 }
 
 watch(ready, draw);
@@ -75,7 +84,7 @@ watch(() => [props.guess, props.correct], draw, { deep: true });
             ref="container"
             class="h-full w-full"
             role="img"
-            aria-label="Карта с вашим и правильным ответом"
+            :aria-label="guess ? 'Карта с вашим и правильным ответом' : 'Карта с правильным ответом'"
         />
         <MapError v-if="error" @retry="retry" />
     </div>

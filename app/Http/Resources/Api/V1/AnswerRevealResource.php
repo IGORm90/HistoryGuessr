@@ -8,7 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 /**
- * The scored guess plus the correct answer. Only returned once the answer exists.
+ * The scored guess (or a timeout) plus the correct answer. Only returned once the answer exists.
  *
  * @property Answer $resource
  */
@@ -29,7 +29,9 @@ class AnswerRevealResource extends JsonResource
 
         return [
             'question_id' => $question->public_id,
-            'guess' => [
+            'timed_out' => $answer->timed_out,
+            // No guess when time ran out before a point was picked.
+            'guess' => $answer->guessed_latitude === null ? null : [
                 'latitude' => $answer->guessed_latitude,
                 'longitude' => $answer->guessed_longitude,
                 'year' => $answer->guessed_year,
@@ -43,6 +45,7 @@ class AnswerRevealResource extends JsonResource
             ],
             'distance_meters' => $answer->distance_meters,
             'year_difference' => $answer->year_difference,
+            'duration_ms' => $answer->duration_ms,
             'score' => [
                 'geo' => $answer->geo_score,
                 'year' => $answer->year_score,

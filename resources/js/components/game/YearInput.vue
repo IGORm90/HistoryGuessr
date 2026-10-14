@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { DEFAULT_YEAR } from '@/config/game';
 import { formatCentury, formatYear } from '@/utils/year';
 
 /**
@@ -15,8 +16,6 @@ const props = withDefaults(defineProps<{ disabled?: boolean; inputId?: string; m
 });
 const model = defineModel<number | null>({ default: null });
 
-// Where the ruler rests before the player picks a year.
-const START_YEAR = 1900;
 const PX_PER_YEAR = 2;
 const BIG_STEP = 100;
 
@@ -33,7 +32,7 @@ const minPosition = computed(() => toPosition(props.min));
 const maxPosition = computed(() => toPosition(props.max));
 const clamp = (position: number): number => Math.min(maxPosition.value, Math.max(minPosition.value, position));
 
-const position = ref(clamp(toPosition(model.value ?? START_YEAR)));
+const position = ref(clamp(toPosition(model.value ?? DEFAULT_YEAR)));
 const touched = ref(model.value !== null);
 const dragging = ref(false);
 
@@ -80,7 +79,7 @@ watch(model, (value) => {
         // External reset (next question): back to the resting position.
         stopMotion();
         touched.value = false;
-        position.value = clamp(toPosition(START_YEAR));
+        position.value = clamp(toPosition(DEFAULT_YEAR));
     } else if (value !== current.value) {
         touched.value = true;
         moveTo(toPosition(value));

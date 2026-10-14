@@ -118,6 +118,43 @@ it('requires the stored total to equal the score parts', function () {
     Answer::factory()->create(['geo_score' => 100, 'year_score' => 200, 'total_score' => 999]);
 })->throws(QueryException::class, 'answers_total_is_sum');
 
+it('stores a timed-out answer without a guess', function () {
+    $answer = Answer::factory()->timedOut()->create();
+
+    expect($answer->refresh()->timed_out)->toBeTrue()->and($answer->guessed_year)->toBeNull();
+});
+
+it('stores a timeout that carries the guess picked in time', function () {
+    $answer = Answer::factory()->create(['timed_out' => true]);
+
+    expect($answer->refresh()->timed_out)->toBeTrue()->and($answer->guessed_year)->not->toBeNull();
+});
+
+it('rejects a partial guess', function (array $attributes) {
+    Answer::factory()->create($attributes);
+})->with([
+    'no longitude' => [['guessed_longitude' => null]],
+    'no year' => [['guessed_year' => null]],
+    'no distance' => [['distance_meters' => null]],
+])->throws(QueryException::class, 'answers_guess_consistent');
+
+it('rejects an answer without a guess unless it is a zero-point timeout', function (array $attributes) {
+    Answer::factory()->timedOut()->create($attributes);
+})->with([
+    'not timed out' => [['timed_out' => false]],
+    'points' => [['geo_score' => 100, 'total_score' => 100]],
+])->throws(QueryException::class, 'answers_guess_consistent');
+
+it('requires round start and deadline together, in order', function (array $times) {
+    $session = GameSession::factory()->create();
+    $question = Question::factory()->published()->create();
+
+    DB::table('game_session_questions')->insert(['game_session_id' => $session->id, 'question_id' => $question->id, 'position' => 1, ...$times]);
+})->with([
+    'deadline without start' => [['deadline_at' => '2026-10-14 10:00:00']],
+    'deadline before start' => [['started_at' => '2026-10-14 10:00:00', 'deadline_at' => '2026-10-14 09:59:00']],
+])->throws(QueryException::class, 'game_session_questions_round_consistent');
+
 it('prevents deleting a question that has answers', function () {
     $answer = Answer::factory()->create();
 

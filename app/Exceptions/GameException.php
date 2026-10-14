@@ -37,6 +37,11 @@ class GameException extends HttpException
         return new self('already_answered', 'На этот вопрос уже дан ответ.');
     }
 
+    public static function roundExpired(): self
+    {
+        return new self('round_expired', 'Время на ответ вышло.');
+    }
+
     public static function answerRequired(): self
     {
         return new self('answer_required', 'Сначала ответьте на текущий вопрос.');

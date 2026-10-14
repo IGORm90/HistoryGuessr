@@ -20,6 +20,7 @@ const maplibre = vi.hoisted(() => {
             remove: vi.fn(),
             resize: vi.fn(),
             fitBounds: vi.fn(),
+            jumpTo: vi.fn(),
             getSource: vi.fn((id: string) => sources[id]),
             addSource: vi.fn((id: string, source: { data: unknown }) => {
                 const created: FakeSource = { data: source.data, setData: vi.fn((data) => (created.data = data)) };
@@ -245,5 +246,18 @@ describe('AnswerMap', () => {
             expect.objectContaining({ geometry: { type: 'LineString', coordinates: [[13.4, 52.52], [12.5, 41.9]] } }),
         );
         expect(lastMap().fitBounds).toHaveBeenCalledTimes(2);
+    });
+
+    it('shows only the correct place after a timeout', async () => {
+        const wrapper = mount(AnswerMap, { props: { guess: null, correct: rome } });
+        await flushPromises();
+        lastMap().emit('load');
+        await flushPromises();
+
+        expect(lastMap().sources['answer-line']!.data).toEqual({ type: 'FeatureCollection', features: [] });
+        expect(maplibre.createMarker).toHaveBeenCalledTimes(1);
+        expect(lastMap().fitBounds).not.toHaveBeenCalled();
+        expect(lastMap().jumpTo).toHaveBeenCalledWith({ center: [12.5, 41.9], zoom: 7 });
+        expect(wrapper.find('[role="img"]').attributes('aria-label')).toBe('Карта с правильным ответом');
     });
 });

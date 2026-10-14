@@ -10,36 +10,11 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
-use Illuminate\Testing\TestResponse;
 
 beforeEach(function () {
     // Sanctum only starts the cookie session for requests from the SPA's own origin.
     $this->withHeader('Referer', config('app.url').'/');
 });
-
-function startGame(Quiz $quiz): array
-{
-    return test()->postJson('/api/v1/game-sessions', ['quiz_id' => $quiz->public_id])->assertCreated()->json();
-}
-
-function answerCurrent(string $gameId, array $overrides = []): TestResponse
-{
-    $state = test()->getJson("/api/v1/game-sessions/{$gameId}")->json();
-
-    return test()->postJson("/api/v1/game-sessions/{$gameId}/answers", array_merge([
-        'question_id' => $state['question']['id'],
-        'latitude' => 48.8566,
-        'longitude' => 2.3522,
-        'year' => 1900,
-        'idempotency_key' => (string) Str::uuid(),
-        'duration_ms' => 12000,
-    ], $overrides));
-}
-
-function advance(string $gameId, int $position): TestResponse
-{
-    return test()->postJson("/api/v1/game-sessions/{$gameId}/advance", ['position' => $position]);
-}
 
 describe('starting a game', function () {
     it('creates a session with round_size questions in a fixed order', function () {

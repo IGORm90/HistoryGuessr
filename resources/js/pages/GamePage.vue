@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { storeToRefs } from 'pinia';
 import { useGameStore } from '@/stores/game';
@@ -21,16 +21,16 @@ const props = defineProps<{ gameId: string }>();
 
 const router = useRouter();
 const store = useGameStore();
-const { game, guess, year, phase, canSubmit, submitting, advancing, error, questionShownAt, answeredAt } = storeToRefs(store);
+const { game, guess, year, phase, canSubmit, submitting, advancing, error, remainingMs, timeUp, notice } = storeToRefs(store);
 
 const mapExpanded = ref(false);
 const answerMapExpanded = ref(false);
 const loading = ref(false);
 const notFound = computed(() => error.value?.status === 404);
-// After a reload of an answered question we don't know how long it took, so the timer shows a dash.
-const timerStartedAt = computed(() => (phase.value === 'revealed' && answeredAt.value === null ? null : questionShownAt.value || null));
+const formLocked = computed(() => submitting.value || timeUp.value);
 const submitLabel = computed(() => {
     if (submitting.value) return 'Проверяем…';
+    if (timeUp.value) return 'Показываем ответ…';
     if (!guess.value) return 'Отметьте место на карте';
     if (year.value === null) return 'Укажите год';
     return 'Ответить';
@@ -45,6 +45,26 @@ async function load(): Promise<void> {
 }
 
 watch(() => props.gameId, load, { immediate: true });
+
+// Timers are throttled in background tabs; catch up as soon as the player is back.
+function onVisibilityChange(): void {
+    if (document.visibilityState === 'visible') store.syncClock();
+}
+
+// The "previous round expired" notice hides by itself after a while.
+const NOTICE_MS = 6000;
+let noticeTimer: ReturnType<typeof setTimeout> | undefined;
+
+watch(notice, (current) => {
+    clearTimeout(noticeTimer);
+    if (current) noticeTimer = setTimeout(() => store.dismissNotice(), NOTICE_MS);
+});
+
+onMounted(() => document.addEventListener('visibilitychange', onVisibilityChange));
+onBeforeUnmount(() => {
+    document.removeEventListener('visibilitychange', onVisibilityChange);
+    clearTimeout(noticeTimer);
+});
 
 watch(phase, async (current) => {
     if (current === 'completed') {
@@ -68,6 +88,7 @@ async function next(): Promise<void> {
 
 function retry(): void {
     if (!game.value) void load();
+    else if (timeUp.value) void store.submitOnTimeout();
     else if (phase.value === 'guessing') void submit();
     else void next();
 }
@@ -79,7 +100,11 @@ function retry(): void {
     <div v-else class="min-h-screen">
         <AppHeader>
             <template v-if="game" #center>
-                <RoundTimer :started-at="timerStartedAt" :stopped-at="answeredAt" />
+                <RoundTimer
+                    :remaining-ms="phase === 'guessing' ? remainingMs : null"
+                    :spent-ms="game.answer?.duration_ms ?? null"
+                    :timed-out="timeUp || (game.answer?.timed_out ?? false)"
+                />
             </template>
             <RoundProgress
                 v-if="game"
@@ -104,6 +129,33 @@ function retry(): void {
             </div>
 
             <template v-else-if="game.question">
+                <div
+                    v-if="notice === 'previous_round_expired'"
+                    class="card mb-4 flex items-center gap-3 border-l-4 border-l-stamp py-3"
+                    role="status"
+                >
+                    <p class="flex-1 font-semibold text-stamp">Время на прошлый вопрос вышло — 0 очков</p>
+                    <button
+                        type="button"
+                        class="grid size-9 shrink-0 place-items-center rounded-full text-ink-soft hover:bg-paper hover:text-ink"
+                        aria-label="Закрыть"
+                        @click="store.dismissNotice()"
+                    >
+                        <svg
+                            width="16"
+                            height="16"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2.4"
+                            stroke-linecap="round"
+                            aria-hidden="true"
+                        >
+                            <path d="M6 6l12 12M18 6L6 18" />
+                        </svg>
+                    </button>
+                </div>
+
                 <div class="mb-4 space-y-1">
                     <p class="text-[0.8125rem] font-bold tracking-[0.12em] text-umber uppercase">Подборка «{{ game.quiz.title }}»</p>
                     <QuestionPrompt />
@@ -122,18 +174,18 @@ function retry(): void {
                                     <span class="text-xs text-ink-soft tabular-nums">{{ guess ? formatCoordinates(guess) : 'не отмечено' }}</span>
                                 </div>
                                 <ExpandableMap v-model:expanded="mapExpanded">
-                                    <GuessMap v-model="guess" :disabled="submitting" />
+                                    <GuessMap v-model="guess" :disabled="formLocked" />
                                 </ExpandableMap>
                             </section>
 
                             <section class="card">
-                                <YearInput v-model="year" :disabled="submitting" />
+                                <YearInput v-model="year" :disabled="formLocked" />
                             </section>
 
                             <ErrorPanel
                                 v-if="error"
                                 :error="error"
-                                :retrying="submitting"
+                                :retrying="submitting || loading"
                                 @retry="retry"
                             />
 

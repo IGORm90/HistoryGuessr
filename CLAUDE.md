@@ -9,7 +9,7 @@ Product spec: `mvp-plan.md`. Laravel API + Vue 3 SPA live in one repo and deploy
 - Filament 5 at `/admin`, roles via `users.role` (`admin` | `editor`) + Policies — no permission packages
 - Vue 3 + TypeScript + Vite, Vue Router, Pinia, MapLibre GL JS, Tailwind 4
 - Self-hosted map: VersaTiles server (service `maps`) with OSM Shortbread tiles, behind nginx at `/maps/` (`docker/maps/README.md`)
-- Tests: Pest (backend, runs against PostgreSQL `historyguessr_test`), Vitest (`tests/js`), Playwright (`tests/e2e`)
+- Tests: Pest (backend, runs against PostgreSQL `historyguessr_test`), Vitest (`tests/js`); Playwright is not set up yet
 
 ## Commands
 
@@ -42,7 +42,7 @@ Dev logins: `admin@example.com` / `editor@example.com`, password `password`.
 - Answer submission is idempotent (`idempotency_key`) and protected by DB unique constraints.
 - Scoring constants live in `config/game.php`.
 - Questions and quizzes share `App\Enums\PublicationStatus` (draft / published / archived). Drafts may be incomplete; PostgreSQL CHECK `questions_published_complete` refuses to publish a question without image, answer and attribution.
-- Integrity rules (year ≠ 0, coordinate ranges, one answer per question, unique idempotency key, `total = geo + year`) are enforced by DB constraints, not only in PHP. CHECK constraints are added with `DB::statement` in migrations.
+- Integrity rules (year ≠ 0, coordinate ranges, one answer per question, unique idempotency key, `total = geo + year`, an answer without a guess is a 0-point timeout) are enforced by DB constraints, not only in PHP. CHECK constraints are added with `DB::statement` in migrations.
 - `public_id` is set by the `HasPublicId` model event: don't use `WithoutModelEvents` in seeders.
 - Years are signed integers: `-44` = 44 BC, year `0` does not exist. Use `App\Support\HistoricalYear` for differences and validation.
 - The player sees only the photo (no question text). `answer` (what the photo shows; also the admin title) and `reveal_text` are revealed after answering and are plain text; no HTML is stored or rendered.
@@ -58,13 +58,17 @@ Dev logins: `admin@example.com` / `editor@example.com`, password `password`.
 |---|---|
 | `GET quizzes` | Published quizzes with at least one published question |
 | `POST game-sessions` `{quiz_id}` | Start: weighted random sample (`WeightedSampler`), order fixed in `game_session_questions`; 201 + game state |
-| `GET game-sessions/{id}` | Current state; `answer` is present only once the current question is answered (reload recovery) |
-| `POST game-sessions/{id}/answers` | `{question_id, latitude, longitude, year, idempotency_key, duration_ms}`; 201 when created, 200 for an idempotent replay |
+| `GET game-sessions/{id}` | Current state; `answer` is present only once the current question is answered (reload recovery); `round` holds the timer; `notice` is set once after a skipped round |
+| `POST game-sessions/{id}/answers` | `{question_id, latitude, longitude, year, idempotency_key, timed_out?}`; with `timed_out` the point/year are optional; 201 when created, 200 for an idempotent replay |
 | `POST game-sessions/{id}/advance` `{position}` | Leave `position`; repeating it is a no-op; the last one completes the game |
 | `GET game-sessions/{id}/result` | Per-round scores; 409 until completed |
 
+- Round timer: a question's round starts when the server shows it (game start / `advance`); `game_session_questions.started_at`/`deadline_at`, limit snapshotted in `game_sessions.round_time_limit_seconds` (`config('game.round')`: 90 s + 3 s grace). `App\Support\RoundClock` holds the rules: expired = `now > deadline + grace` without an answer.
+  At zero the client sends `timed_out: true` with whatever was picked: a point is scored as usual (`timed_out` answer with a guess), no point scores 0. The server does not second-guess the client's countdown (no "too early" error); any answer after `deadline + grace` is 409 `round_expired`. `duration_ms` is measured by the server.
+  A round left unanswered past the grace (player away/offline) is skipped lazily by `ExpireRound` on GET or `advance`: a zero-point answer without a guess, then `MoveToNextRound` opens the next question with a fresh timer (or completes the game); that GET alone returns `notice: "previous_round_expired"`. The skipped question is never revealed. The reveal screen has no limit.
+  `round: {time_limit_ms, grace_ms, started_at, deadline_at, remaining_ms}`; the client counts down from `remaining_ms`.
 - Players are anonymous: `EnsureAnonymousPlayer` stores a UUID in the cookie session. Sanctum only starts that session for requests from the SPA origin (`SANCTUM_STATEFUL_DOMAINS`); API tests must send `Referer: APP_URL`.
-- Another player's game is a 404, not a 403. Rule violations are `GameException` (409) with codes like `already_answered`, `question_mismatch`, `answer_required`, `game_not_in_progress`, `quiz_unavailable`.
+- Another player's game is a 404, not a 403. Rule violations are `GameException` (409) with codes like `already_answered`, `question_mismatch`, `answer_required`, `game_not_in_progress`, `quiz_unavailable`, `round_expired`.
 - Answers and advances lock the game session row (`lockForUpdate`); resources are unwrapped (`JsonResource::withoutWrapping()`).
 - Game reads go through `QuestionCache` (Redis); `QuestionObserver` and `ProcessQuestionImage` invalidate it.
 
@@ -88,7 +92,8 @@ Dev logins: `admin@example.com` / `editor@example.com`, password `password`.
 - Layers and sources (e.g. the answer line) are added only once `ready` is true; update them with `setData`, never by recreating the map.
 - Mobile-first layouts. On phones the guess map expands to a full-screen sheet (same MapLibre instance; `useMap` resizes it via ResizeObserver).
 - Game flow lives in `stores/game.ts`: `phase` is derived from server state (`guessing` → `revealed` → `completed`); `submit()` keeps one idempotency key per question until the answer is confirmed; `advance()` sends the current position.
-- Visual language (farmstead: brown, hay, beige): tokens in `resources/css/app.css` (`paper` beige page, `paper-raised` cards, `ink` brown text and header, `hay` actions and guesses, `umber` links, `stamp` brick red). Manrope for UI, Lora for headings, answers, reveal text and years (`YearStamp`). `AppHeader` is the brown bar (a `center` slot holds the game's `RoundTimer`); panels use `.card`; the main action is `.btn-primary` (hay). Correct answers are marked in `stamp` red, guesses in `hay`.
+  The round timer is server-driven: `deadline` = now + `round.remaining_ms` on every applied state; at zero (`timeUp`) `submitOnTimeout()` sends the picked point with `year ?? DEFAULT_YEAR` (`config/game.ts`, also the ruler's resting year) unless a manual answer is in flight; the server's `notice` is kept in the store until dismissed or the next answer.
+- Visual language (farmstead: brown, hay, beige): tokens in `resources/css/app.css` (`paper` beige page, `paper-raised` cards, `ink` brown text and header, `hay` actions and guesses, `umber` links, `stamp` brick red). Manrope for UI, Lora for headings, answers, reveal text and years (`YearStamp`). `AppHeader` is the brown bar (a `center` slot holds the game's countdown `RoundTimer`, `stamp` red in the last 15 s); panels use `.card`; the main action is `.btn-primary` (hay). Correct answers are marked in `stamp` red, guesses in `hay`.
 - Vitest specs live in `tests/js`; MapLibre is mocked there (`vi.mock('@/lib/maplibre')`, no WebGL in jsdom), coordinate logic is tested in isolation.
 
 ## Out of scope for the MVP

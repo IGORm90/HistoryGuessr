@@ -64,6 +64,11 @@
         @apply rounded-[20px] border border-rule bg-paper-raised p-4;
     }
 
+    /* A rubber stamp for a round that ran out of time. */
+    .time-up-stamp {
+        @apply inline-block -rotate-2 rounded-md border-2 border-stamp px-3 py-1.5 text-sm font-extrabold tracking-[0.08em] text-stamp uppercase;
+    }
+
     /* Year set like a date stamp on an archive card. */
     .year-stamp {
         @apply font-serif font-semibold tabular-nums tracking-tight;

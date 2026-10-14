@@ -8,7 +8,7 @@ import YearStamp from './YearStamp.vue';
 const props = defineProps<{ answer: AnswerReveal }>();
 
 const yearVerdict = computed(() =>
-    props.answer.year_difference === 0 ? 'точно в год' : `ошибка ${pluralYears(props.answer.year_difference)}`,
+    props.answer.year_difference === 0 ? 'точно в год' : `ошибка ${pluralYears(props.answer.year_difference ?? 0)}`,
 );
 </script>
 
@@ -28,10 +28,16 @@ const yearVerdict = computed(() =>
             </p>
         </div>
 
-        <dl class="grid grid-cols-2 gap-4 text-sm">
+        <p v-if="!answer.guess" class="time-up-stamp">
+            Время вышло — 0 очков
+        </p>
+        <p v-else-if="answer.timed_out" class="time-up-stamp text-xs">
+            Время вышло — засчитан выбранный ответ
+        </p>
+        <dl v-if="answer.guess" class="grid grid-cols-2 gap-4 text-sm">
             <div>
                 <dt class="text-ink-soft">Место</dt>
-                <dd class="mt-0.5 text-base">{{ formatDistance(answer.distance_meters) }} от цели</dd>
+                <dd class="mt-0.5 text-base">{{ formatDistance(answer.distance_meters ?? 0) }} от цели</dd>
                 <dd class="font-semibold tabular-nums">+{{ formatNumber(answer.score.geo) }}</dd>
             </div>
             <div>

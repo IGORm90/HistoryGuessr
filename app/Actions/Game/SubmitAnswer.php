@@ -21,7 +21,9 @@ class SubmitAnswer
 
     /**
      * Scores and stores the guess for the current question. Idempotent per `idempotency_key`:
-     * a retry returns the answer created by the first request.
+     * a retry returns the answer created by the first request. After the round's deadline (plus grace)
+     * new answers are refused with `round_expired`. When the client's countdown hits zero it sends
+     * `timed_out` with whatever was picked: a point is scored as usual, no point is worth zero.
      */
     public function handle(GameSession $session, SubmitAnswerData $data): Answer
     {
@@ -46,47 +48,70 @@ class SubmitAnswer
             throw GameException::notInProgress();
         }
 
-        $current = DB::table('game_session_questions')
-            ->join('questions', 'questions.id', '=', 'game_session_questions.question_id')
-            ->where('game_session_questions.game_session_id', $locked->id)
-            ->where('game_session_questions.position', $locked->current_position)
-            ->first(['questions.id', 'questions.public_id']);
+        $current = $locked->currentRound();
 
-        if ($current === null || $current->public_id !== $data->questionPublicId) {
+        if ($current === null || $current->questionPublicId !== $data->questionPublicId) {
             throw GameException::questionMismatch();
         }
 
-        if (Answer::query()->where('game_session_id', $locked->id)->where('question_id', $current->id)->exists()) {
+        if (Answer::query()->where('game_session_id', $locked->id)->where('question_id', $current->questionId)->exists()) {
             throw GameException::alreadyAnswered();
         }
 
-        $question = $this->questions->get((int) $current->id)
-            ?? throw GameException::questionMismatch();
+        $now = now()->toImmutable();
 
-        $score = $this->scores->score(
-            $data->guess,
-            $data->year,
-            new Coordinates((float) $question->latitude, (float) $question->longitude),
-            (int) $question->answer_year,
-        );
+        // Checked after the idempotent replay above, so a retry of an answer accepted in time still succeeds.
+        if ($current->isExpired($now)) {
+            throw GameException::roundExpired();
+        }
 
-        $answer = Answer::create([
+        $attributes = [
             'game_session_id' => $locked->id,
-            'question_id' => $question->id,
+            'question_id' => $current->questionId,
             'idempotency_key' => $data->idempotencyKey,
-            'guessed_latitude' => $data->guess->latitude,
-            'guessed_longitude' => $data->guess->longitude,
-            'guessed_year' => $data->year,
-            'distance_meters' => $score->distanceMeters,
-            'year_difference' => $score->yearDifference,
-            'geo_score' => $score->geoScore,
-            'year_score' => $score->yearScore,
-            'total_score' => $score->total(),
-            'duration_ms' => $data->durationMs,
-            'answered_at' => now(),
-        ]);
+            'timed_out' => $data->timedOut,
+            'geo_score' => 0,
+            'year_score' => 0,
+            'total_score' => 0,
+            // Measured on the server; null for rounds started before the timer existed.
+            'duration_ms' => match (true) {
+                $data->timedOut => $locked->round_time_limit_seconds * 1000,
+                $current->startedAt !== null => max(0, $now->getTimestampMs() - $current->startedAt->getTimestampMs()),
+                default => null,
+            },
+            'answered_at' => $now,
+        ];
 
-        $locked->increment('total_score', $score->total());
+        // A timeout without a picked point is worth nothing; otherwise the picked guess is scored as usual.
+        if ($data->guess !== null && $data->year !== null) {
+            $question = $this->questions->get($current->questionId)
+                ?? throw GameException::questionMismatch();
+
+            $score = $this->scores->score(
+                $data->guess,
+                $data->year,
+                new Coordinates((float) $question->latitude, (float) $question->longitude),
+                (int) $question->answer_year,
+            );
+
+            $attributes = [
+                ...$attributes,
+                'guessed_latitude' => $data->guess->latitude,
+                'guessed_longitude' => $data->guess->longitude,
+                'guessed_year' => $data->year,
+                'distance_meters' => $score->distanceMeters,
+                'year_difference' => $score->yearDifference,
+                'geo_score' => $score->geoScore,
+                'year_score' => $score->yearScore,
+                'total_score' => $score->total(),
+            ];
+        }
+
+        $answer = Answer::create($attributes);
+
+        if ($answer->total_score > 0) {
+            $locked->increment('total_score', $answer->total_score);
+        }
 
         return $answer;
     }

@@ -19,6 +19,13 @@ use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 
 class QuizForm
 {
+    /** Quiz cards on the home page are 3:2 (`QuizList.vue`). */
+    private const string COVER_RATIO = '3:2';
+
+    private const int COVER_WIDTH = 1200;
+
+    private const int COVER_HEIGHT = 800;
+
     public static function configure(Schema $schema): Schema
     {
         return $schema
@@ -57,8 +64,12 @@ class QuizForm
                             ->required(),
                         FileUpload::make('cover_image_path')
                             ->label('Обложка')
-                            ->helperText('Перекодируется в WebP, EXIF удаляется.')
+                            ->helperText('Обложка обрезается до 3:2 — в редакторе выберите нужную часть. Перекодируется в WebP, EXIF удаляется.')
                             ->image()
+                            ->imageEditor()
+                            ->imageAspectRatio(self::COVER_RATIO)
+                            ->imageEditorAspectRatioOptions([self::COVER_RATIO])
+                            ->automaticallyOpenImageEditorForAspectRatio()
                             ->disk(fn (): string => config('filesystems.default'))
                             ->visibility('public')
                             ->acceptedFileTypes(ImageProcessor::ALLOWED_MIME_TYPES)
@@ -79,11 +90,12 @@ class QuizForm
 
     /**
      * Covers are small and admin-only, so they are processed synchronously instead of via the queue.
+     * The admin crops in the editor; the server still centre-crops to 3:2 so a cover can never break the grid.
      */
     private static function storeCover(TemporaryUploadedFile $file): string
     {
         try {
-            $webp = app(ImageProcessor::class)->processToWebp((string) $file->get(), 1200);
+            $webp = app(ImageProcessor::class)->processCroppedToWebp((string) $file->get(), self::COVER_WIDTH, self::COVER_HEIGHT);
         } catch (InvalidImageException) {
             throw ValidationException::withMessages(['data.cover_image_path' => 'Не удалось обработать изображение.']);
         }

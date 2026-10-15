@@ -55,13 +55,23 @@ class ImageProcessor
     }
 
     /**
-     * Re-encodes a single image (e.g. a quiz cover) and returns the WebP binary.
+     * Re-encodes an image cropped around its centre to the `$width`:`$height` ratio and at most that size
+     * (a smaller image is not upscaled), so every quiz card shows a cover of the same shape.
      */
-    public function processToWebp(string $binary, int $maxEdge): string
+    public function processCroppedToWebp(string $binary, int $width, int $height): string
     {
         $this->assertAllowedBinary($binary);
 
-        return $this->encode($this->resize($binary, $maxEdge));
+        try {
+            $image = $this->manager->decodeBinary($binary);
+        } catch (Throwable $e) {
+            throw new InvalidImageException('Image could not be decoded.', previous: $e);
+        }
+
+        // The largest centred box of the target ratio, then shrunk to the target size if bigger.
+        $scale = min($image->width() / $width, $image->height() / $height, 1);
+
+        return $this->encode($image->cover(max(1, (int) round($width * $scale)), max(1, (int) round($height * $scale))));
     }
 
     public function assertAllowedBinary(string $binary): void

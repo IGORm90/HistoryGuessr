@@ -71,7 +71,7 @@ function sheetNumber(index: number): string {
                             v-if="quiz.cover_url"
                             :src="quiz.cover_url"
                             alt=""
-                            class="h-full w-full object-cover"
+                            class="absolute inset-0 h-full w-full object-cover"
                             loading="lazy"
                         >
                         <span v-else class="absolute inset-0 flex items-center justify-center text-[13px] tracking-[0.1em] text-ink-soft uppercase">

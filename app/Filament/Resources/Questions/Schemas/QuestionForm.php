@@ -108,8 +108,11 @@ class QuestionForm
             ->schema([
                 FileUpload::make('image_original_path')
                     ->label('Оригинал')
-                    ->helperText('JPEG, PNG или WebP до 15 МБ. EXIF и GPS удаляются при обработке.')
+                    ->helperText('JPEG, PNG или WebP до 15 МБ. Перед сохранением фото можно обрезать (кнопка редактирования на превью). EXIF и GPS удаляются при обработке.')
                     ->image()
+                    // Cropping is optional: the game shows a photo in its own proportions.
+                    ->imageEditor()
+                    ->imageEditorAspectRatioOptions([null, '3:2', '4:3', '16:9', '1:1'])
                     ->disk(fn (): string => config('filesystems.default'))
                     ->directory('originals')
                     ->visibility('private')

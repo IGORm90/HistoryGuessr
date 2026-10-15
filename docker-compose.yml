@@ -89,6 +89,7 @@ services:
       - s3-data:/data
 
   # Creates the bucket; only processed images (questions/*, quizzes/*) are publicly readable.
+  # CORS lets the admin's file upload (FilePond) fetch existing files for its previews.
   s3-init:
     image: amazon/aws-cli:latest
     depends_on:
@@ -99,11 +100,13 @@ services:
       AWS_DEFAULT_REGION: us-east-1
     volumes:
       - ./docker/s3-public-policy.json:/policy.json:ro
+      - ./docker/s3-cors.json:/cors.json:ro
     entrypoint: >
       sh -c "for i in $$(seq 1 30); do aws --endpoint-url http://s3:9000 s3api list-buckets >/dev/null 2>&1 && break; sleep 1; done;
              aws --endpoint-url http://s3:9000 s3api head-bucket --bucket historyguessr 2>/dev/null ||
              aws --endpoint-url http://s3:9000 s3api create-bucket --bucket historyguessr;
-             aws --endpoint-url http://s3:9000 s3api put-bucket-policy --bucket historyguessr --policy file:///policy.json"
+             aws --endpoint-url http://s3:9000 s3api put-bucket-policy --bucket historyguessr --policy file:///policy.json &&
+             aws --endpoint-url http://s3:9000 s3api put-bucket-cors --bucket historyguessr --cors-configuration file:///cors.json"
 
   # Self-hosted vector map: OSM tiles + glyphs/sprites, reached only through nginx at /maps/.
   # Data lives outside Git and the image (docker/maps/README.md); `make maps` fetches it.

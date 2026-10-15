@@ -33,15 +33,33 @@ it('creates a quiz with a processed cover', function () {
             'title' => 'Античность',
             'slug' => 'antiquity',
             'round_size' => 5,
-            'cover_image_path' => UploadedFile::fake()->createWithContent('cover.jpg', ImageFixtures::jpegWithGps(2000, 1000)),
+            'cover_image_path' => UploadedFile::fake()->createWithContent('cover.jpg', ImageFixtures::jpegWithGps(1800, 1200)),
         ])
         ->call('create')
         ->assertHasNoFormErrors();
 
     $quiz = Quiz::sole();
+    $cover = new Imagick;
+    $cover->readImageBlob($this->disk->get($quiz->cover_image_path));
+
     expect($quiz->slug)->toBe('antiquity')
         ->and($quiz->cover_image_path)->toMatch('#^quizzes/[0-9a-f-]{36}\.webp$#')
+        ->and([$cover->getImageWidth(), $cover->getImageHeight()])->toBe([1200, 800])
         ->and(str_contains($this->disk->get($quiz->cover_image_path), 'Exif'))->toBeFalse();
+});
+
+it('refuses a cover that was not cropped to 3:2', function () {
+    Livewire::test(CreateQuiz::class)
+        ->fillForm([
+            'title' => 'Античность',
+            'slug' => 'antiquity',
+            'round_size' => 5,
+            'cover_image_path' => UploadedFile::fake()->createWithContent('cover.jpg', ImageFixtures::jpegWithGps(1000, 1000)),
+        ])
+        ->call('create')
+        ->assertHasFormErrors(['cover_image_path']);
+
+    expect(Quiz::count())->toBe(0);
 });
 
 it('requires a unique slug', function () {

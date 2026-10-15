@@ -52,6 +52,23 @@ it('does not upscale small images', function () {
     expect([$result->width, $result->height])->toBe([800, 600]);
 });
 
+it('centre-crops a cover to the exact target size', function (int $width, int $height, array $expected) {
+    $source = new Imagick;
+    $source->newImage($width, $height, new ImagickPixel('gray'));
+    $source->setImageFormat('png');
+
+    $image = new Imagick;
+    $image->readImageBlob(app(ImageProcessor::class)->processCroppedToWebp($source->getImageBlob(), 1200, 800));
+
+    expect($image->getImageFormat())->toBe('WEBP')
+        ->and([$image->getImageWidth(), $image->getImageHeight()])->toBe($expected);
+})->with([
+    'portrait' => [960, 1200, [960, 640]],
+    'wide' => [3000, 1000, [1200, 800]],
+    'large 3:2' => [2400, 1600, [1200, 800]],
+    'small, not upscaled' => [600, 300, [450, 300]],
+]);
+
 it('rejects files that are not real images', function (string $contents) {
     $this->disk->put('originals/fake.jpg', $contents);
 

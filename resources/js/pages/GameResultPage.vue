@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, nextTick, onMounted, ref } from 'vue';
 import { RouterLink, useRouter } from 'vue-router';
 import { gamesApi } from '@/api/games';
 import { useAsyncState } from '@/composables/useAsyncState';
@@ -40,6 +40,7 @@ const pins = computed<ResultPin[]>(() =>
                       // Grey: the round scored nothing because no point was picked in time.
                       timedOut: round.guess === null,
                       title: round.question.answer,
+                      imageUrl: round.question.image_url,
                   },
               ],
     ),
@@ -54,6 +55,21 @@ function roundSummary(round: GameRound): string {
     }
     const verdict = round.year_difference === 0 ? 'год угадан' : pluralYears(round.year_difference ?? 0);
     return [year, `${formatDistance(round.distance_meters)}, ${verdict}`].filter(Boolean).join(' · ');
+}
+
+const roundItems = new Map<number, HTMLElement>();
+
+function setRoundItem(position: number, element: unknown): void {
+    if (element instanceof HTMLElement) roundItems.set(position, element);
+    else roundItems.delete(position);
+}
+
+/** A pin hovered on the map highlights its row and brings it into view in the list. */
+async function onPinHover(position: number | null): Promise<void> {
+    highlighted.value = position;
+    if (position === null) return;
+    await nextTick();
+    roundItems.get(position)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
 }
 
 onMounted(async () => {
@@ -89,6 +105,7 @@ async function playAgain(): Promise<void> {
                 :pins="pins"
                 :highlighted="highlighted"
                 :padding="mapPadding"
+                @hover="onPinHover"
             />
             <div class="sheet-frame z-[5] hidden lg:block" />
         </div>
@@ -125,11 +142,14 @@ async function playAgain(): Promise<void> {
 
                 <aside class="sheet flex flex-col px-6 py-[22px] lg:absolute lg:top-10 lg:right-10 lg:bottom-10 lg:w-[440px]" aria-labelledby="rounds-heading">
                     <h2 id="rounds-heading" class="border-b-2 border-ink pb-2.5 text-[13px] font-semibold tracking-[0.14em] uppercase">Указатель точек</h2>
-                    <ol class="min-h-0 flex-1 overflow-y-auto">
+                    <ol class="-mx-3 min-h-0 flex-1 overflow-x-hidden overflow-y-auto">
                         <li
                             v-for="round in result.data.value.rounds"
                             :key="round.position"
-                            class="grid grid-cols-[30px_minmax(0,1fr)_auto] items-center gap-3 border-b border-rule py-3"
+                            :ref="(el) => setRoundItem(round.position, el)"
+                            class="round-item grid grid-cols-[30px_minmax(0,1fr)_auto] items-center gap-3 border-b border-rule py-3"
+                            :class="{ 'is-active': highlighted === round.position }"
+                            :aria-current="highlighted === round.position ? 'true' : undefined"
                             @mouseenter="highlighted = round.position"
                             @mouseleave="highlighted = null"
                         >

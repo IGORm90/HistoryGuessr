@@ -3,9 +3,11 @@ import {
     Map as MapLibreMap,
     Marker,
     NavigationControl,
+    Popup,
     setWorkerUrl,
     type MapOptions,
     type MarkerOptions,
+    type PopupOptions,
     type StyleSpecification,
 } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
@@ -17,7 +19,7 @@ import { graticule } from '@/components/maps/coordinates';
 setWorkerUrl(workerUrl);
 
 export type { GeoJSONSource, LngLat, MapMouseEvent } from 'maplibre-gl';
-export { LngLatBounds, type MapLibreMap, type Marker };
+export { LngLatBounds, type MapLibreMap, type Marker, type Popup };
 
 /**
  * The style keeps same-origin URLs relative (/maps/...), but MapLibre needs absolute ones (tiles are
@@ -92,6 +94,10 @@ export function addGraticule(map: MapLibreMap): void {
 
 export function createMarker(options: MarkerOptions = {}): Marker {
     return new Marker(options);
+}
+
+export function createPopup(options: PopupOptions = {}): Popup {
+    return new Popup(options);
 }
 
 /** A round marker drawn with CSS (`.marker-guess`, `.marker-correct` in app.css). */

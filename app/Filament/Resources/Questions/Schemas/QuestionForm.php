@@ -2,6 +2,8 @@
 
 namespace App\Filament\Resources\Questions\Schemas;
 
+use App\Actions\Admin\SyncQuestionQuizzes;
+use App\Enums\PublicationStatus;
 use App\Enums\QuestionDifficulty;
 use App\Filament\Forms\Components\MapLocationPicker;
 use App\Models\Question;
@@ -19,6 +21,7 @@ use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Str;
 use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 
@@ -59,6 +62,7 @@ class QuestionForm
                     ->options(QuestionDifficulty::class)
                     ->default(QuestionDifficulty::Medium)
                     ->required(),
+                self::quizzes(),
                 Textarea::make('reveal_text')
                     ->label('Описание')
                     ->helperText('Показывается игроку после ответа. Обычный текст, HTML не поддерживается.')
@@ -67,6 +71,34 @@ class QuestionForm
                     ->required(self::requiredWhenPublished())
                     ->columnSpanFull(),
             ]);
+    }
+
+    /**
+     * Archived quizzes are offered only when the question already belongs to them,
+     * so saving the form never drops them silently.
+     */
+    private static function quizzes(): Select
+    {
+        return Select::make('quizzes')
+            ->label('Подборки')
+            ->helperText('Вопрос добавляется в конец подборки с весом 1. Порядок и вес меняются на странице подборки.')
+            ->multiple()
+            ->searchable()
+            ->preload()
+            ->relationship(
+                'quizzes',
+                'title',
+                fn (Builder $query, ?Question $record): Builder => $query->where(
+                    fn (Builder $query): Builder => $query
+                        ->where('quizzes.status', '!=', PublicationStatus::Archived)
+                        ->when($record?->exists, fn (Builder $query): Builder => $query->orWhereHas(
+                            'questions',
+                            fn (Builder $query): Builder => $query->whereKey($record->id),
+                        )),
+                ),
+            )
+            ->saveRelationshipsUsing(fn (Question $record, ?array $state) => app(SyncQuestionQuizzes::class)->handle($record, $state ?? []))
+            ->columnSpanFull();
     }
 
     private static function image(): Section

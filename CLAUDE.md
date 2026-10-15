@@ -76,6 +76,7 @@ Dev logins: `admin@example.com` / `editor@example.com`, password `password`.
 
 - Resources live in `app/Filament/Resources/{Questions,Quizzes,Users}` with separate `Schemas/` and `Tables/` classes.
 - Status changes go through `App\Filament\Actions\PublicationActions` → `App\Actions\Admin\{PublishQuestion,PublishQuiz,ChangePublicationStatus}`. Never set `status = published` directly in a form.
+- A question's quizzes are picked in the question form (`quizzes` select; archived quizzes only if already attached). Saving goes through `App\Actions\Admin\SyncQuestionQuizzes`: new quizzes get the question appended via `AttachQuestionsToQuiz` (weight 1), removed ones detach it, kept ones keep position and weight.
 - Editors and admins manage content; only admins manage users (Policies in `app/Policies`). Answered questions and played quizzes cannot be deleted — archive them.
 - The map field is `App\Filament\Forms\Components\MapLocationPicker` (Alpine component `mapLocationPicker` in `resources/js/admin/location-picker.ts`, loaded via a panel render hook). Shared MapLibre setup is in `resources/js/lib/maplibre.ts`.
 

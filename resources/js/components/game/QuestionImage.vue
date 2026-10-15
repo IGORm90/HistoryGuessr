@@ -2,7 +2,7 @@
 import { computed, ref } from 'vue';
 import type { PublicQuestion } from '@/types/game';
 
-/** The question photo, filling its box: cropped (`cover`, the pinned photo) or whole (`contain`, the lightbox). */
+/** The question photo, filling its box: cropped (`cover`) or whole (`contain`, the pinned photo and the lightbox). */
 const props = withDefaults(defineProps<{ image: PublicQuestion['image']; fit?: 'cover' | 'contain'; sizes?: string }>(), {
     fit: 'cover',
     sizes: '(min-width: 1024px) 380px, 130px',
@@ -20,7 +20,7 @@ const srcset = computed(() =>
 </script>
 
 <template>
-    <figure class="relative h-full w-full overflow-hidden" :class="fit === 'cover' ? 'bg-ink' : ''">
+    <figure class="relative h-full w-full overflow-hidden" :class="fit === 'cover' || failed ? 'bg-ink' : ''">
         <img
             v-if="!failed && (image.large_url || image.medium_url)"
             :src="image.medium_url ?? image.large_url ?? undefined"

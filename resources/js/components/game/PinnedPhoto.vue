@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed } from 'vue';
 import type { PublicQuestion } from '@/types/game';
 import QuestionImage from './QuestionImage.vue';
 import QuestionPrompt from './QuestionPrompt.vue';
@@ -6,9 +7,16 @@ import QuestionPrompt from './QuestionPrompt.vue';
 /**
  * The question photo pinned over the map like a polaroid. Small on phones; on desktop it shrinks
  * (`compact`) once the answer is shown. A click opens it full screen.
+ *
+ * The photo is never cropped: the frame takes the photo's own proportions (capped in height),
+ * and a photo taller than the cap is shown whole, letterboxed inside the frame.
  */
-defineProps<{ image: PublicQuestion['image']; compact?: boolean }>();
+const props = defineProps<{ image: PublicQuestion['image']; compact?: boolean }>();
 defineEmits<{ open: [] }>();
+
+const aspectRatio = computed(() =>
+    props.image.width && props.image.height ? `${props.image.width} / ${props.image.height}` : null,
+);
 </script>
 
 <template>
@@ -23,8 +31,15 @@ defineEmits<{ open: [] }>();
         aria-label="Увеличить фотографию"
         @click="$emit('open')"
     >
-        <span class="block h-[150px] w-full transition-[height] duration-300 ease-out" :class="compact ? 'lg:h-[240px]' : 'lg:h-[440px]'">
-            <QuestionImage :image="image" />
+        <span
+            class="block w-full transition-[height,max-height] duration-300 ease-out"
+            :class="[
+                aspectRatio ? 'max-h-[150px]' : 'h-[150px]',
+                aspectRatio ? (compact ? 'lg:max-h-[240px]' : 'lg:max-h-[440px]') : compact ? 'lg:h-[240px]' : 'lg:h-[440px]',
+            ]"
+            :style="aspectRatio ? { aspectRatio } : undefined"
+        >
+            <QuestionImage :image="image" fit="contain" />
         </span>
         <span v-if="!compact" class="mt-2.5 hidden flex-col gap-2.5 lg:flex">
             <QuestionPrompt />

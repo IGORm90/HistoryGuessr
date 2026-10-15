@@ -1,5 +1,6 @@
 <?php
 
+use App\Actions\Admin\SyncQuestionQuizzes;
 use App\Enums\PublicationStatus;
 use App\Filament\Resources\Questions\Pages\CreateQuestion;
 use App\Filament\Resources\Questions\Pages\EditQuestion;
@@ -161,6 +162,104 @@ it('bulk adds questions to a quiz', function () {
 
     expect($quiz->questions()->count())->toBe(2)
         ->and($quiz->questions()->first()->pivot->weight)->toBe(2);
+});
+
+/**
+ * @return array<int, array{position: int, weight: int}>
+ */
+function quizPivots(Question $question): array
+{
+    return $question->quizzes()->get()
+        ->mapWithKeys(fn (Quiz $quiz): array => [$quiz->id => [
+            'position' => (int) $quiz->getRelationValue('pivot')->position,
+            'weight' => (int) $quiz->getRelationValue('pivot')->weight,
+        ]])
+        ->all();
+}
+
+it('adds a new question to the end of the chosen quizzes', function () {
+    $filled = Quiz::factory()->withQuestions(3)->create();
+    $empty = Quiz::factory()->published()->create();
+    $other = Quiz::factory()->create();
+
+    Livewire::test(CreateQuestion::class)
+        ->fillForm(['answer' => 'Мартовские иды', 'quizzes' => [$filled->id, $empty->id]])
+        ->call('create')
+        ->assertHasNoFormErrors();
+
+    $question = Question::query()->where('answer', 'Мартовские иды')->sole();
+
+    expect(quizPivots($question))->toEqual([
+        $filled->id => ['position' => 4, 'weight' => 1],
+        $empty->id => ['position' => 1, 'weight' => 1],
+    ])
+        ->and($other->questions()->count())->toBe(0);
+});
+
+it('creates a question without quizzes', function () {
+    Livewire::test(CreateQuestion::class)
+        ->fillForm(['answer' => 'Без подборки'])
+        ->call('create')
+        ->assertHasNoFormErrors();
+
+    expect(Question::sole()->quizzes()->count())->toBe(0);
+});
+
+it('does not offer archived quizzes for a new question', function () {
+    $archived = Quiz::factory()->create(['status' => PublicationStatus::Archived]);
+
+    Livewire::test(CreateQuestion::class)
+        ->fillForm(['answer' => 'В архив нельзя', 'quizzes' => [$archived->id]])
+        ->call('create')
+        ->assertHasFormErrors(['quizzes.0']);
+
+    expect(Question::query()->count())->toBe(0);
+});
+
+it('syncs quizzes on edit, keeping order and weight of the kept ones', function () {
+    $question = Question::factory()->create();
+    $kept = Quiz::factory()->withQuestions(2)->create();
+    $removed = Quiz::factory()->create();
+    $added = Quiz::factory()->withQuestions(1)->create();
+    $kept->questions()->attach($question->id, ['position' => 2, 'weight' => 5]);
+    $removed->questions()->attach($question->id, ['position' => 1, 'weight' => 1]);
+
+    $page = Livewire::test(EditQuestion::class, ['record' => $question->getRouteKey()]);
+
+    expect(collect($page->get('data.quizzes'))->map(fn ($id): int => (int) $id)->sort()->values()->all())
+        ->toBe(collect([$kept->id, $removed->id])->sort()->values()->all());
+
+    $page->fillForm(['quizzes' => [$kept->id, $added->id]])
+        ->call('save')
+        ->assertHasNoFormErrors();
+
+    expect(quizPivots($question))->toEqual([
+        $kept->id => ['position' => 2, 'weight' => 5],
+        $added->id => ['position' => 2, 'weight' => 1],
+    ]);
+});
+
+it('keeps an archived quiz the question already belongs to', function () {
+    $question = Question::factory()->create();
+    $archived = Quiz::factory()->create(['status' => PublicationStatus::Archived]);
+    $archived->questions()->attach($question->id, ['position' => 3, 'weight' => 2]);
+
+    Livewire::test(EditQuestion::class, ['record' => $question->getRouteKey()])
+        ->call('save')
+        ->assertHasNoFormErrors();
+
+    expect(quizPivots($question))->toEqual([$archived->id => ['position' => 3, 'weight' => 2]]);
+});
+
+it('syncs quizzes idempotently', function () {
+    $question = Question::factory()->create();
+    $quiz = Quiz::factory()->withQuestions(2)->create();
+    $sync = app(SyncQuestionQuizzes::class);
+
+    $sync->handle($question, [$quiz->id, (string) $quiz->id]);
+    $sync->handle($question, [$quiz->id]);
+
+    expect(quizPivots($question))->toEqual([$quiz->id => ['position' => 3, 'weight' => 1]]);
 });
 
 it('renders the preview with the reveal', function () {

@@ -1,11 +1,13 @@
 <?php
 
+use App\Actions\Admin\DeleteQuestion;
 use App\Actions\Admin\SyncQuestionQuizzes;
 use App\Enums\PublicationStatus;
 use App\Filament\Resources\Questions\Pages\CreateQuestion;
 use App\Filament\Resources\Questions\Pages\EditQuestion;
 use App\Filament\Resources\Questions\Pages\ListQuestions;
 use App\Models\Answer;
+use App\Models\GameSession;
 use App\Models\Question;
 use App\Models\Quiz;
 use App\Models\User;
@@ -270,12 +272,65 @@ it('renders the preview with the reveal', function () {
         ->assertMountedActionModalSee(['Порт-Саид', '1869 г.']);
 });
 
-it('does not allow deleting a question that has answers', function () {
-    $answered = Answer::factory()->create()->question;
+it('allows deleting only archived questions', function () {
+    foreach ([Question::factory()->create(), Question::factory()->published()->create()] as $question) {
+        Livewire::test(EditQuestion::class, ['record' => $question->getRouteKey()])
+            ->assertActionHidden(DeleteAction::class);
+    }
 
-    Livewire::test(EditQuestion::class, ['record' => $answered->getRouteKey()])
-        ->assertActionHidden(DeleteAction::class);
+    $archived = Question::factory()->archived()->create();
+    Livewire::test(EditQuestion::class, ['record' => $archived->getRouteKey()])
+        ->assertActionVisible(DeleteAction::class);
 });
+
+it('deletes an archived played question with its games and images', function () {
+    $question = Question::factory()->archived()->create([
+        'image_original_path' => 'originals/a.jpg',
+        'image_large_path' => 'questions/a/large.webp',
+        'image_medium_path' => 'questions/a/medium.webp',
+    ]);
+    foreach (['originals/a.jpg', 'questions/a/large.webp', 'questions/a/medium.webp'] as $path) {
+        $this->disk->put($path, 'x');
+    }
+    $quiz = Quiz::factory()->create();
+    $quiz->questions()->attach($question->id, ['position' => 1, 'weight' => 1]);
+
+    $answered = Answer::factory()->create(['question_id' => $question->id])->gameSession;
+    $shown = GameSession::factory()->create();
+    $shown->questions()->attach($question->id, ['position' => 1]);
+    $other = Answer::factory()->create();
+
+    Livewire::test(EditQuestion::class, ['record' => $question->getRouteKey()])
+        ->assertActionVisible(DeleteAction::class)
+        ->mountAction(DeleteAction::class)
+        ->assertMountedActionModalSee('(2)')
+        ->callMountedAction();
+
+    expect(Question::find($question->id))->toBeNull()
+        ->and(GameSession::find($answered->id))->toBeNull()
+        ->and(GameSession::find($shown->id))->toBeNull()
+        ->and($other->fresh())->not->toBeNull()
+        ->and($quiz->fresh())->not->toBeNull()
+        ->and($this->disk->exists('originals/a.jpg'))->toBeFalse()
+        ->and($this->disk->exists('questions/a/large.webp'))->toBeFalse();
+});
+
+it('deletes archived questions from the table and skips the rest in bulk', function () {
+    $row = Question::factory()->archived()->create();
+    $archived = Question::factory()->archived()->create();
+    $published = Question::factory()->published()->create();
+
+    Livewire::test(ListQuestions::class)
+        ->assertTableActionHidden(DeleteAction::class, $published)
+        ->callTableAction(DeleteAction::class, $row)
+        ->callTableBulkAction('deleteSelected', [$archived, $published]);
+
+    expect(Question::pluck('id')->all())->toBe([$published->id]);
+});
+
+it('refuses to delete a question that is not archived', function () {
+    app(DeleteQuestion::class)->handle(Question::factory()->published()->create());
+})->throws(InvalidArgumentException::class);
 
 it('keeps public ids out of the form', function () {
     $question = Question::factory()->create();

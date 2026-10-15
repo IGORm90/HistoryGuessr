@@ -3,10 +3,10 @@
 namespace App\Filament\Resources\Questions\Pages;
 
 use App\Filament\Actions\PublicationActions;
+use App\Filament\Resources\Questions\Actions\DeleteQuestionAction;
 use App\Filament\Resources\Questions\Actions\PreviewQuestionAction;
 use App\Filament\Resources\Questions\QuestionResource;
 use Filament\Actions\ActionGroup;
-use Filament\Actions\DeleteAction;
 use Filament\Resources\Pages\EditRecord;
 
 class EditQuestion extends EditRecord
@@ -21,7 +21,7 @@ class EditQuestion extends EditRecord
             ActionGroup::make([
                 PublicationActions::toDraft(),
                 PublicationActions::archive(),
-                DeleteAction::make(),
+                DeleteQuestionAction::make(),
             ]),
         ];
     }

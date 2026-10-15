@@ -2,12 +2,13 @@
 
 namespace App\Policies;
 
+use App\Enums\PublicationStatus;
 use App\Models\Question;
 use App\Models\User;
 
 /**
- * Admins and editors manage content. A question that players have already answered
- * cannot be deleted (answers keep a foreign key to it) — archive it instead.
+ * Admins and editors manage content. Only archived questions can be deleted
+ * (App\Actions\Admin\DeleteQuestion removes the games they were played in too).
  */
 class QuestionPolicy
 {
@@ -33,7 +34,7 @@ class QuestionPolicy
 
     public function delete(User $user, Question $question): bool
     {
-        return $user->canManageContent() && ! $question->answers()->exists();
+        return $user->canManageContent() && $question->status === PublicationStatus::Archived;
     }
 
     public function deleteAny(User $user): bool

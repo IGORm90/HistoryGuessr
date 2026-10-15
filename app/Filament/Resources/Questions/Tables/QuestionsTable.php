@@ -6,6 +6,7 @@ use App\Actions\Admin\AttachQuestionsToQuiz;
 use App\Enums\PublicationStatus;
 use App\Enums\QuestionDifficulty;
 use App\Filament\Actions\PublicationActions;
+use App\Filament\Resources\Questions\Actions\DeleteQuestionAction;
 use App\Filament\Resources\Questions\Actions\PreviewQuestionAction;
 use App\Models\Question;
 use App\Models\Quiz;
@@ -82,11 +83,13 @@ class QuestionsTable
             ->recordActions([
                 PreviewQuestionAction::make(),
                 EditAction::make(),
+                DeleteQuestionAction::make(),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([
                     ...PublicationActions::bulk(),
                     self::addToQuiz(),
+                    DeleteQuestionAction::bulk(),
                 ]),
             ]);
     }

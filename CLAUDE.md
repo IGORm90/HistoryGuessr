@@ -29,6 +29,10 @@ Everything PHP runs inside Docker (`make shell` for a shell). Node tooling runs 
 | `make maps-style` | Regenerate the map style (`resources/js/config/map-style.json`) |
 
 Before finishing a task: `make lint analyse test` must be green.
+
+## Git
+
+Work directly on `main`: no feature branches or worktrees unless the user explicitly asks for one.
 Dev logins: `admin@example.com` / `editor@example.com`, password `password`.
 
 ## Backend rules

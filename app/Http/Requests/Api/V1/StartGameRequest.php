@@ -16,15 +16,22 @@ class StartGameRequest extends FormRequest
     {
         return [
             'quiz_id' => [
-                'required',
+                'nullable',
                 'uuid',
                 Rule::exists('quizzes', 'public_id')->where('status', PublicationStatus::Published->value),
             ],
         ];
     }
 
-    public function quiz(): Quiz
+    /**
+     * Null starts a game of random published questions.
+     */
+    public function quiz(): ?Quiz
     {
+        if ($this->validated('quiz_id') === null) {
+            return null;
+        }
+
         return Quiz::query()->where('public_id', $this->validated('quiz_id'))->firstOrFail();
     }
 }

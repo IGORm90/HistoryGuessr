@@ -26,7 +26,7 @@ class GameResultResource extends JsonResource
         return [
             'id' => $this->public_id,
             'status' => $this->status->value,
-            'quiz' => ['id' => $this->quiz->public_id, 'title' => $this->quiz->title],
+            'quiz' => $this->quiz ? ['id' => $this->quiz->public_id, 'title' => $this->quiz->title] : null,
             'total_score' => $this->total_score,
             'max_score' => $this->question_count * 2 * (int) config('game.scoring.max_points'),
             'started_at' => $this->started_at->toIso8601String(),

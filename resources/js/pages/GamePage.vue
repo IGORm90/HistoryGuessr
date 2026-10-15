@@ -13,6 +13,7 @@ import YearInput from '@/components/game/YearInput.vue';
 import ScoreBreakdown from '@/components/game/ScoreBreakdown.vue';
 import GameMap, { type MapReveal } from '@/components/maps/GameMap.vue';
 import NotFoundPage from '@/pages/NotFoundPage.vue';
+import { gameTitle } from '@/utils/format';
 
 const props = defineProps<{ gameId: string }>();
 
@@ -128,7 +129,7 @@ function retry(): void {
                 v-if="game && (!desktop || !revealed)"
                 class="absolute top-[calc(env(safe-area-inset-top)+8px)] right-3 left-3 lg:top-10 lg:right-10 lg:left-auto"
                 :compact="!desktop"
-                :quiz-title="game.quiz.title"
+                :quiz-title="gameTitle(game.quiz)"
                 :position="game.position"
                 :total="game.question_count"
                 :score="game.total_score"

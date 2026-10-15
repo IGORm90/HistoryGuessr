@@ -5,6 +5,7 @@ namespace App\Actions\Game;
 use App\Enums\GameSessionStatus;
 use App\Exceptions\GameException;
 use App\Models\GameSession;
+use App\Models\Question;
 use App\Models\Quiz;
 use App\Support\RoundClock;
 use App\Support\WeightedSampler;
@@ -15,32 +16,20 @@ class StartGame
     public function __construct(private readonly WeightedSampler $sampler) {}
 
     /**
-     * Picks the round's questions by weight among the quiz's published questions and fixes their order.
-     * If editors unpublished questions so fewer than `round_size` remain, the round is shorter.
+     * Fixes the round's question order. With a quiz, questions are picked by weight among its published
+     * questions; without one, among all published questions with equal odds. If fewer than the round size
+     * are available, the round is shorter.
      */
-    public function handle(Quiz $quiz, string $anonymousId): GameSession
+    public function handle(?Quiz $quiz, string $anonymousId): GameSession
     {
-        /** @var array<int, int> $weights question id => weight */
-        $weights = DB::table('quiz_questions')
-            ->join('questions', 'questions.id', '=', 'quiz_questions.question_id')
-            ->where('quiz_questions.quiz_id', $quiz->id)
-            ->where('questions.status', 'published')
-            ->pluck('quiz_questions.weight', 'quiz_questions.question_id')
-            ->map(fn ($weight) => (int) $weight)
-            ->all();
-
-        if ($weights === []) {
-            throw GameException::quizUnavailable();
-        }
-
-        $questionIds = $this->sampler->sample($weights, $quiz->round_size);
+        $questionIds = $quiz ? $this->quizQuestionIds($quiz) : $this->randomQuestionIds();
 
         return DB::transaction(function () use ($quiz, $anonymousId, $questionIds): GameSession {
             $startedAt = now()->toImmutable();
             $limit = RoundClock::limitSeconds();
 
             $session = GameSession::create([
-                'quiz_id' => $quiz->id,
+                'quiz_id' => $quiz?->id,
                 'anonymous_id' => $anonymousId,
                 'status' => GameSessionStatus::InProgress,
                 'current_position' => 1,
@@ -65,5 +54,47 @@ class StartGame
 
             return $session;
         });
+    }
+
+    /**
+     * @return list<int>
+     */
+    private function quizQuestionIds(Quiz $quiz): array
+    {
+        /** @var array<int, int> $weights question id => weight */
+        $weights = DB::table('quiz_questions')
+            ->join('questions', 'questions.id', '=', 'quiz_questions.question_id')
+            ->where('quiz_questions.quiz_id', $quiz->id)
+            ->where('questions.status', 'published')
+            ->pluck('quiz_questions.weight', 'quiz_questions.question_id')
+            ->map(fn ($weight) => (int) $weight)
+            ->all();
+
+        if ($weights === []) {
+            throw GameException::quizUnavailable();
+        }
+
+        return $this->sampler->sample($weights, $quiz->round_size);
+    }
+
+    /**
+     * @return list<int>
+     */
+    private function randomQuestionIds(): array
+    {
+        /** @var list<int> $ids */
+        $ids = Question::query()
+            ->published()
+            ->inRandomOrder()
+            ->limit((int) config('game.random_round_size'))
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        if ($ids === []) {
+            throw GameException::questionsUnavailable();
+        }
+
+        return $ids;
     }
 }

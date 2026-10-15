@@ -2,7 +2,8 @@ import { api } from './client';
 import type { AnswerReveal, GameResult, GameState, SubmitAnswerPayload } from '@/types/game';
 
 export const gamesApi = {
-    start: (quizId: string) => api.post<GameState>('/game-sessions', { quiz_id: quizId }),
+    /** Without a quiz the server picks random published questions. */
+    start: (quizId?: string) => api.post<GameState>('/game-sessions', quizId ? { quiz_id: quizId } : {}),
     get: (gameId: string) => api.get<GameState>(`/game-sessions/${gameId}`),
     answer: (gameId: string, payload: SubmitAnswerPayload) =>
         api.post<AnswerReveal>(`/game-sessions/${gameId}/answers`, payload),

@@ -36,6 +36,16 @@ describe('game store', () => {
         expect(store.phase).toBe('completed');
     });
 
+    it('starts a random game without a quiz', async () => {
+        const store = useGameStore();
+        api.start.mockResolvedValueOnce(gameState({ quiz: null }));
+
+        await store.start();
+
+        expect(api.start).toHaveBeenCalledWith(undefined);
+        expect(store.game?.quiz).toBeNull();
+    });
+
     it('can submit only with both a point and a year', () => {
         const store = useGameStore();
         store.applyState(gameState());

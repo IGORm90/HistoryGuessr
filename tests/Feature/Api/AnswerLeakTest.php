@@ -49,6 +49,18 @@ it('does not leak the answer when a game starts or is reloaded', function () {
     expect($start['answer'])->toBeNull();
 });
 
+it('does not leak the answer when a random game starts or is reloaded', function () {
+    Question::factory()->published()->count(3)->create();
+
+    $start = $this->postJson('/api/v1/game-sessions')->assertCreated()->json();
+    $question = Question::where('public_id', $start['question']['id'])->sole();
+    $reload = $this->getJson("/api/v1/game-sessions/{$start['id']}")->assertOk()->json();
+
+    assertNoAnswerLeak($start, $question);
+    assertNoAnswerLeak($reload, $question);
+    expect($start['answer'])->toBeNull();
+});
+
 it('does not leak the next answer after advancing', function () {
     $quiz = Quiz::factory()->published()->withQuestions(2)->create(['round_size' => 2]);
     $start = $this->postJson('/api/v1/game-sessions', ['quiz_id' => $quiz->public_id])->json();

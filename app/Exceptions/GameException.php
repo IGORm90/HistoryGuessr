@@ -22,6 +22,11 @@ class GameException extends HttpException
         return new self('quiz_unavailable', 'В этой подборке пока нет опубликованных вопросов.');
     }
 
+    public static function questionsUnavailable(): self
+    {
+        return new self('questions_unavailable', 'Пока нет опубликованных вопросов.');
+    }
+
     public static function notInProgress(): self
     {
         return new self('game_not_in_progress', 'Игра уже завершена.');

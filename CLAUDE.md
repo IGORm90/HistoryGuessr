@@ -61,7 +61,7 @@ Dev logins: `admin@example.com` / `editor@example.com`, password `password`.
 | Endpoint | Purpose |
 |---|---|
 | `GET quizzes` | Published quizzes with at least one published question |
-| `POST game-sessions` `{quiz_id}` | Start: weighted random sample (`WeightedSampler`), order fixed in `game_session_questions`; 201 + game state |
+| `POST game-sessions` `{quiz_id?}` | Start: weighted random sample of the quiz (`WeightedSampler`); without `quiz_id` (home «Начать игру») `game.random_round_size` random published questions, equal odds, `quiz: null` (`409 questions_unavailable` if none); order fixed in `game_session_questions`; 201 + game state |
 | `GET game-sessions/{id}` | Current state; `answer` is present only once the current question is answered (reload recovery); `round` holds the timer; `notice` is set once after a skipped round |
 | `POST game-sessions/{id}/answers` | `{question_id, latitude, longitude, year, idempotency_key, timed_out?}`; with `timed_out` the point/year are optional; 201 when created, 200 for an idempotent replay |
 | `POST game-sessions/{id}/advance` `{position}` | Leave `position`; repeating it is a no-op; the last one completes the game |

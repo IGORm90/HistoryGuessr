@@ -21,6 +21,9 @@ return [
         'grace' => (int) env('GAME_ROUND_GRACE', 3),
     ],
 
+    // Questions in a game started without a quiz: random published questions, equal odds.
+    'random_round_size' => (int) env('GAME_RANDOM_ROUND_SIZE', 5),
+
     // How long public question data stays in the cache (seconds).
     'question_cache_ttl' => (int) env('GAME_QUESTION_CACHE_TTL', 3600),
 ];

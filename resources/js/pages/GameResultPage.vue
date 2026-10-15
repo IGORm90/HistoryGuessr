@@ -10,7 +10,7 @@ import ResultMap, { type ResultPin } from '@/components/maps/ResultMap.vue';
 import NotFoundPage from '@/pages/NotFoundPage.vue';
 import type { ApiError } from '@/api/client';
 import type { GameRound } from '@/types/game';
-import { formatDistance, formatNumber, pluralYears } from '@/utils/format';
+import { formatDistance, formatNumber, gameTitle, pluralYears } from '@/utils/format';
 import { formatYear } from '@/utils/year';
 
 const props = defineProps<{ gameId: string }>();
@@ -85,7 +85,7 @@ async function playAgain(): Promise<void> {
     restarting.value = true;
     restartError.value = null;
     try {
-        const game = await store.start(result.data.value.quiz.id);
+        const game = await store.start(result.data.value.quiz?.id);
         await router.push({ name: 'game', params: { gameId: game.id } });
     } catch (e) {
         restartError.value = e as ApiError;
@@ -124,7 +124,7 @@ async function playAgain(): Promise<void> {
             <template v-else>
                 <section class="sheet px-[26px] py-5 lg:absolute lg:top-11 lg:left-11" aria-live="polite">
                     <h1 class="eyebrow">
-                        <RouterLink :to="{ name: 'home' }" class="hover:text-stamp">Итоги</RouterLink> · {{ result.data.value.quiz.title }}
+                        <RouterLink :to="{ name: 'home' }" class="hover:text-stamp">Итоги</RouterLink> · {{ gameTitle(result.data.value.quiz) }}
                     </h1>
                     <p class="year-stamp mt-1.5 text-[64px] leading-none sm:text-[80px]">{{ formatNumber(result.data.value.total_score) }}</p>
                     <p class="mt-1 text-[17px] text-ink-soft">из {{ formatNumber(result.data.value.max_score) }} · {{ share }}%</p>
@@ -176,7 +176,7 @@ async function playAgain(): Promise<void> {
                         >
                             {{ restarting ? 'Запускаем…' : 'Сыграть ещё раз' }}
                         </button>
-                        <RouterLink :to="{ name: 'home' }" class="btn-secondary">Другие подборки</RouterLink>
+                        <RouterLink :to="{ name: 'home' }" class="btn-secondary">На главную</RouterLink>
                     </div>
                 </aside>
             </template>

@@ -73,6 +73,64 @@ describe('starting a game', function () {
     });
 });
 
+describe('starting a random game', function () {
+    it('draws random_round_size questions among all published ones', function () {
+        config(['game.random_round_size' => 5]);
+        Question::factory()->published()->count(3)->create();
+        Quiz::factory()->published()->withQuestions(4)->create();
+        $draft = Question::factory()->create();
+        $archived = Question::factory()->archived()->create();
+
+        $game = $this->postJson('/api/v1/game-sessions')->assertCreated()->json();
+
+        $session = GameSession::where('public_id', $game['id'])->sole();
+        $questionIds = DB::table('game_session_questions')->where('game_session_id', $session->id)->orderBy('position')->pluck('question_id');
+
+        expect($game)->toMatchArray(['status' => 'in_progress', 'position' => 1, 'question_count' => 5, 'quiz' => null])
+            ->and($session->quiz_id)->toBeNull()
+            ->and($questionIds->unique())->toHaveCount(5)
+            ->and($questionIds)->not->toContain($draft->id)
+            ->and($questionIds)->not->toContain($archived->id)
+            ->and(Question::whereIn('id', $questionIds)->published()->count())->toBe(5);
+
+        $this->getJson("/api/v1/game-sessions/{$game['id']}")->assertOk()->assertJsonPath('quiz', null);
+    });
+
+    it('includes questions outside any quiz and shortens the round when few are published', function () {
+        config(['game.random_round_size' => 5]);
+        $questions = Question::factory()->published()->count(3)->create();
+
+        $game = $this->postJson('/api/v1/game-sessions')->assertCreated()->json();
+
+        expect($game['question_count'])->toBe(3)
+            ->and($questions->pluck('public_id'))->toContain($game['question']['id']);
+    });
+
+    it('reports a database without published questions as unavailable', function () {
+        Question::factory()->create();
+
+        $this->postJson('/api/v1/game-sessions')
+            ->assertConflict()
+            ->assertJsonPath('code', 'questions_unavailable');
+    });
+
+    it('plays through to a result without a quiz', function () {
+        Question::factory()->published()->count(2)->create();
+        $game = $this->postJson('/api/v1/game-sessions')->assertCreated()->json();
+
+        foreach ([1, 2] as $position) {
+            answerCurrent($game['id'])->assertCreated();
+            advance($game['id'], $position)->assertOk();
+        }
+
+        $this->getJson("/api/v1/game-sessions/{$game['id']}/result")
+            ->assertOk()
+            ->assertJsonPath('status', 'completed')
+            ->assertJsonPath('quiz', null)
+            ->assertJsonCount(2, 'rounds');
+    });
+});
+
 describe('answering', function () {
     beforeEach(function () {
         $this->quiz = Quiz::factory()->published()->withQuestions(3)->create(['round_size' => 3]);

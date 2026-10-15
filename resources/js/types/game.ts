@@ -52,10 +52,13 @@ export type RoundInfo = {
     remaining_ms: number | null;
 };
 
+export type GameQuiz = { id: string; title: string };
+
 export type GameState = {
     id: string;
     status: GameStatus;
-    quiz: { id: string; title: string };
+    /** Null for a game of random questions. */
+    quiz: GameQuiz | null;
     position: number;
     question_count: number;
     total_score: number;
@@ -90,7 +93,8 @@ export type GameRound = {
 export type GameResult = {
     id: string;
     status: GameStatus;
-    quiz: { id: string; title: string };
+    /** Null for a game of random questions. */
+    quiz: GameQuiz | null;
     total_score: number;
     max_score: number;
     started_at: string;

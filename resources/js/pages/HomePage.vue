@@ -1,16 +1,38 @@
 <script setup lang="ts">
 import { ref } from 'vue';
-import { RouterLink } from 'vue-router';
+import { RouterLink, useRouter } from 'vue-router';
 import QuizList from '@/components/quiz/QuizList.vue';
 import WorldBackdrop from '@/components/maps/WorldBackdrop.vue';
+import ErrorPanel from '@/components/ui/ErrorPanel.vue';
+import type { ApiError } from '@/api/client';
+import { useGameStore } from '@/stores/game';
 import { lastGame } from '@/utils/lastGame';
 import { DESKTOP_QUERY, useMediaQuery } from '@/composables/useMediaQuery';
 
+const router = useRouter();
+const store = useGameStore();
 const unfinished = ref(lastGame());
+const starting = ref(false);
+const startError = ref<ApiError | null>(null);
 // On desktop the pins stay to the right of the hero card.
 const desktop = useMediaQuery(DESKTOP_QUERY);
 
 const steps = ['Рассмотрите фотографию', 'Отметьте место на карте', 'Назовите год'];
+
+// A game of random published questions, without a quiz.
+async function play(): Promise<void> {
+    if (starting.value) return;
+    starting.value = true;
+    startError.value = null;
+    try {
+        const game = await store.start();
+        await router.push({ name: 'game', params: { gameId: game.id } });
+    } catch (e) {
+        startError.value = e as ApiError;
+    } finally {
+        starting.value = false;
+    }
+}
 </script>
 
 <template>
@@ -36,8 +58,21 @@ const steps = ['Рассмотрите фотографию', 'Отметьте 
                         Перед вами историческая фотография. Отметьте на карте, где её сделали, и назовите год.
                         Чем ближе к правде, тем больше очков.
                     </p>
+                    <ErrorPanel
+                        v-if="startError"
+                        :error="startError"
+                        :retrying="starting"
+                        @retry="play()"
+                    />
                     <div class="flex flex-wrap gap-2.5">
-                        <a href="#quizzes" class="btn-primary max-sm:w-full">Выбрать подборку</a>
+                        <button
+                            type="button"
+                            class="btn-primary max-sm:w-full"
+                            :disabled="starting"
+                            @click="play()"
+                        >
+                            {{ starting ? 'Начинаем…' : 'Начать игру' }}
+                        </button>
                         <RouterLink v-if="unfinished" :to="{ name: 'game', params: { gameId: unfinished } }" class="btn-secondary max-sm:w-full">
                             Продолжить
                         </RouterLink>

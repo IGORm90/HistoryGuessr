@@ -86,7 +86,7 @@ export const useGameStore = defineStore('game', () => {
         }
     }
 
-    async function start(quizId: string): Promise<GameState> {
+    async function start(quizId?: string): Promise<GameState> {
         const state = await gamesApi.start(quizId);
         applyState(state);
         return state;

@@ -1,3 +1,5 @@
+import type { GameQuiz } from '@/types/game';
+
 const numberFormat = new Intl.NumberFormat('ru-RU');
 
 export function formatNumber(value: number): string {
@@ -35,4 +37,9 @@ export function formatCoordinates(point: { latitude: number; longitude: number }
 export function formatClock(ms: number): string {
     const total = Math.max(0, Math.floor(ms / 1000));
     return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
+}
+
+/** Caption for a game: the quiz title, or a generic one for a game of random questions. */
+export function gameTitle(quiz: GameQuiz | null): string {
+    return quiz?.title ?? 'Случайные снимки';
 }

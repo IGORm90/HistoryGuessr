@@ -28,10 +28,11 @@ class GameStateResource extends JsonResource
         return [
             'id' => $session->public_id,
             'status' => $session->status->value,
-            'quiz' => [
+            // Null for a game of random questions.
+            'quiz' => $session->quiz ? [
                 'id' => $session->quiz->public_id,
                 'title' => $session->quiz->title,
-            ],
+            ] : null,
             'position' => $session->current_position,
             'question_count' => $session->question_count,
             'total_score' => $session->total_score,

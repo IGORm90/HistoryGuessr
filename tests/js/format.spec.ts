@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { formatClock, formatCoordinates, formatDistance, formatNumber, plural, pluralYears } from '@/utils/format';
+import { formatClock, formatCoordinates, formatDistance, formatNumber, gameTitle, plural, pluralYears } from '@/utils/format';
 
 describe('format utils', () => {
+    it('captions a quiz game with its title and a random game generically', () => {
+        expect(gameTitle({ id: 'quiz-1', title: 'Париж' })).toBe('Париж');
+        expect(gameTitle(null)).toBe('Случайные снимки');
+    });
+
     it('formats scores with Russian grouping', () => {
         expect(formatNumber(12450).replace(/\s/g, ' ')).toBe('12 450');
     });

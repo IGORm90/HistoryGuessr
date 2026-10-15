@@ -18,7 +18,7 @@ use Illuminate\Support\Facades\DB;
 /**
  * @property int $id
  * @property string $public_id
- * @property int $quiz_id
+ * @property int|null $quiz_id
  * @property string $anonymous_id
  * @property GameSessionStatus $status
  * @property int $current_position

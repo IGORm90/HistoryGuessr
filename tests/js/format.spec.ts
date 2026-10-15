@@ -4,7 +4,7 @@ import { formatClock, formatCoordinates, formatDistance, formatNumber, gameTitle
 describe('format utils', () => {
     it('captions a quiz game with its title and a random game generically', () => {
         expect(gameTitle({ id: 'quiz-1', title: 'Париж' })).toBe('Париж');
-        expect(gameTitle(null)).toBe('Случайные снимки');
+        expect(gameTitle(null)).toBe('Случайные изображения');
     });
 
     it('formats scores with Russian grouping', () => {

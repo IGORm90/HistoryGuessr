@@ -41,5 +41,5 @@ export function formatClock(ms: number): string {
 
 /** Caption for a game: the quiz title, or a generic one for a game of random questions. */
 export function gameTitle(quiz: GameQuiz | null): string {
-    return quiz?.title ?? 'Случайные снимки';
+    return quiz?.title ?? 'Случайные изображения';
 }

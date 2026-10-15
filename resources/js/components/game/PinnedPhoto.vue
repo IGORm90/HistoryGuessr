@@ -28,7 +28,7 @@ const aspectRatio = computed(() =>
                 ? 'w-[130px] -rotate-2 p-1.5 pb-2 lg:w-[200px] lg:p-2'
                 : 'w-[130px] -rotate-2 p-1.5 pb-2 lg:w-[380px] lg:-rotate-[1.5deg] lg:p-[10px] lg:pb-[14px]'
         "
-        aria-label="Увеличить фотографию"
+        aria-label="Увеличить изображение"
         @click="$emit('open')"
     >
         <span
@@ -45,6 +45,6 @@ const aspectRatio = computed(() =>
             <QuestionPrompt />
             <span class="text-xs tracking-[0.1em] text-ink-soft uppercase">Нажмите, чтобы увеличить</span>
         </span>
-        <span class="mt-1.5 block text-center text-[10px] tracking-[0.1em] uppercase lg:hidden">Развернуть фото</span>
+        <span class="mt-1.5 block text-center text-[10px] tracking-[0.1em] uppercase lg:hidden">Развернуть изображение</span>
     </button>
 </template>

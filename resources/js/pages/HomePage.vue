@@ -17,7 +17,7 @@ const startError = ref<ApiError | null>(null);
 // On desktop the pins stay to the right of the hero card.
 const desktop = useMediaQuery(DESKTOP_QUERY);
 
-const steps = ['Рассмотрите фотографию', 'Отметьте место на карте', 'Назовите год'];
+const steps = ['Рассмотрите изображение', 'Отметьте место на карте', 'Назовите год'];
 
 // A game of random published questions, without a quiz.
 async function play(): Promise<void> {
@@ -52,10 +52,10 @@ async function play(): Promise<void> {
                 <div class="sheet flex flex-col gap-5 p-6 sm:p-10 lg:w-[560px] lg:px-10 lg:py-9">
                     <p class="text-[15px] font-semibold tracking-[0.2em] text-stamp uppercase">Историческая викторина</p>
                     <h1 class="font-serif text-[44px] leading-none font-semibold tracking-[-0.01em] sm:text-[64px]">
-                        Где и когда сделан этот снимок?
+                        Где и когда это было?
                     </h1>
                     <p class="font-serif text-lg leading-[1.55] text-ink-soft">
-                        Перед вами историческая фотография. Отметьте на карте, где её сделали, и назовите год.
+                        Перед вами историческое изображение. Отметьте на карте, где это происходит, и назовите год.
                         Чем ближе к правде, тем больше очков.
                     </p>
                     <ErrorPanel

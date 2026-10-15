@@ -28,14 +28,14 @@ const srcset = computed(() =>
             :sizes="sizes"
             :width="image.width ?? undefined"
             :height="image.height ?? undefined"
-            alt="Историческая фотография, которую нужно определить"
+            alt="Историческое изображение, которое нужно определить"
             class="absolute inset-0 h-full w-full"
             :class="fit === 'cover' ? 'object-cover' : 'object-contain'"
             decoding="async"
             @error="failed = true"
         >
         <div v-else class="absolute inset-0 flex items-center justify-center p-4 text-center text-sm text-paper">
-            Фотография не загрузилась. Обновите страницу.
+            Изображение не загрузилось. Обновите страницу.
         </div>
     </figure>
 </template>

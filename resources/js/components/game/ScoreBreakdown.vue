@@ -66,7 +66,7 @@ const yearVerdict = computed(() =>
         </p>
 
         <p class="mt-auto text-[13px] text-ink-soft">
-            Фото: {{ answer.attribution.author ?? 'автор неизвестен' }}, {{ answer.attribution.license ?? 'лицензия не указана' }}.
+            Источник: {{ answer.attribution.author ?? 'автор неизвестен' }}, {{ answer.attribution.license ?? 'лицензия не указана' }}.
             <a
                 v-if="answer.attribution.source_url"
                 :href="answer.attribution.source_url"

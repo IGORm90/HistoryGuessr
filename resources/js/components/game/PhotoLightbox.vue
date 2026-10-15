@@ -39,7 +39,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown));
             class="fixed inset-0 z-[2000] bg-ink/85 p-4 sm:p-10"
             role="dialog"
             aria-modal="true"
-            aria-label="Фотография"
+            aria-label="Изображение"
             @click="open = false"
         >
             <QuestionImage :image="image" fit="contain" sizes="100vw" />
@@ -47,7 +47,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown));
                 ref="closeButton"
                 type="button"
                 class="absolute top-4 right-4 grid size-11 place-items-center border border-paper bg-ink text-paper hover:bg-stamp"
-                aria-label="Закрыть фотографию"
+                aria-label="Закрыть изображение"
                 @click.stop="open = false"
             >
                 <svg

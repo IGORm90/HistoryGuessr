@@ -108,7 +108,7 @@ class QuestionForm
             ->schema([
                 FileUpload::make('image_original_path')
                     ->label('Оригинал')
-                    ->helperText('JPEG, PNG или WebP до 15 МБ. Перед сохранением фото можно обрезать (кнопка редактирования на превью). EXIF и GPS удаляются при обработке.')
+                    ->helperText('JPEG, PNG или WebP до 15 МБ. Перед сохранением изображение можно обрезать (кнопка редактирования на превью). EXIF и GPS удаляются при обработке.')
                     ->image()
                     // Cropping is optional: the game shows a photo in its own proportions.
                     ->imageEditor()

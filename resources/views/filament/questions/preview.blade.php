@@ -33,7 +33,7 @@
         @endif
         <p class="whitespace-pre-line">{{ $question->reveal_text ?? '— описание не заполнено —' }}</p>
         <p class="text-xs text-gray-500">
-            Фото: {{ $question->image_author ?? 'автор неизвестен' }}
+            Источник: {{ $question->image_author ?? 'автор неизвестен' }}
             · {{ $question->image_license ?? 'лицензия не указана' }}
             @if ($question->source_url)
                 · <a class="underline" href="{{ $question->source_url }}" target="_blank" rel="noopener noreferrer">источник</a>

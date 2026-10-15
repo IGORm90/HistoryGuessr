@@ -23,8 +23,8 @@ class DeleteQuestionAction
                 $games = app(DeleteQuestion::class)->affectedGamesCount($record);
 
                 return $games === 0
-                    ? 'Вопрос и его фотографии будут удалены безвозвратно.'
-                    : "Вопрос, его фотографии и игры, в которых он был ({$games}), будут удалены безвозвратно.";
+                    ? 'Вопрос и его изображения будут удалены безвозвратно.'
+                    : "Вопрос, его изображения и игры, в которых он был ({$games}), будут удалены безвозвратно.";
             })
             ->using(function (Question $record): bool {
                 app(DeleteQuestion::class)->handle($record);
@@ -40,7 +40,7 @@ class DeleteQuestionAction
             ->icon(Heroicon::OutlinedTrash)
             ->color('danger')
             ->requiresConfirmation()
-            ->modalDescription('Будут удалены только вопросы из архива — вместе с фотографиями и играми, в которых они были.')
+            ->modalDescription('Будут удалены только вопросы из архива — вместе с изображениями и играми, в которых они были.')
             ->action(function (Collection $records): void {
                 $archived = $records->filter(fn (Question $q) => $q->status === PublicationStatus::Archived);
                 $archived->each(fn (Question $q) => app(DeleteQuestion::class)->handle($q));

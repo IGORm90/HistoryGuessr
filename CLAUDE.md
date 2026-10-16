@@ -6,7 +6,7 @@ Product spec: `mvp-plan.md`. Laravel API + Vue 3 SPA live in one repo and deploy
 ## Stack
 
 - Laravel 13, PHP 8.4 (Docker), PostgreSQL 17, Redis 7 (cache, sessions, queue), S3-compatible storage (RustFS locally)
-- Filament 5 at `/admin`, roles via `users.role` (`admin` | `editor`) + Policies — no permission packages
+- Filament 5 at `/hstradmn`, roles via `users.role` (`admin` | `editor`) + Policies — no permission packages
 - Vue 3 + TypeScript + Vite, Vue Router, Pinia, MapLibre GL JS, Tailwind 4
 - Self-hosted map: VersaTiles server (service `maps`) with OSM Shortbread tiles, behind nginx at `/maps/` (`docker/maps/README.md`)
 - Tests: Pest (backend, runs against PostgreSQL `historyguessr_test`), Vitest (`tests/js`); Playwright is not set up yet

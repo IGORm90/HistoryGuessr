@@ -164,5 +164,5 @@ it('prevents deleting a question that has answers', function () {
 it('treats a malformed public id as not found', function () {
     $this->actingAs(User::factory()->create());
 
-    $this->get('/admin/questions/5/edit')->assertNotFound();
+    $this->get('/hstradmn/questions/5/edit')->assertNotFound();
 });

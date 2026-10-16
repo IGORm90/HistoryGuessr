@@ -7,5 +7,5 @@ Route::get('/health', HealthController::class)->name('health');
 
 // Vue SPA entry point: every path not claimed by the API, admin panel or framework routes.
 Route::view('/{any?}', 'app')
-    ->where('any', '^(?!api|admin|sanctum|livewire|filament|storage|health).*$')
+    ->where('any', '^(?!api|hstradmn|sanctum|livewire|filament|storage|health).*$')
     ->name('spa');

@@ -8,7 +8,7 @@
 
 ```sh
 make setup   # сборка образов, зависимости, миграции и seed
-make start   # http://localhost:8080, админка — http://localhost:8080/admin
+make start   # http://localhost:8080, админка — http://localhost:8080/hstradmn
 ```
 
 Логины для разработки: `admin@example.com` / `editor@example.com`, пароль `password`.

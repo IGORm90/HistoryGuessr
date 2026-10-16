@@ -27,7 +27,7 @@ class AdminPanelProvider extends PanelProvider
         return $panel
             ->default()
             ->id('admin')
-            ->path('admin')
+            ->path('hstradmn')
             ->login()
             ->brandName('HistoryGuessr')
             ->colors([
